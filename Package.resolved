@@ -1,0 +1,15 @@
+{
+  "originHash" : "a37ab791b028e91ba927aed2f01979a802c12b4164919a272b77af2d9e021dbb",
+  "pins" : [
+    {
+      "identity" : "ligature",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ChimeHQ/Ligature",
+      "state" : {
+        "branch" : "main",
+        "revision" : "036f19ec8e491dd8c46a7e50df552819e4ed3a00"
+      }
+    }
+  ],
+  "version" : 3
+}

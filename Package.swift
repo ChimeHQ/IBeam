@@ -14,11 +14,11 @@ let package = Package(
 		.library(name: "IBeam", targets: ["IBeam"]),
 	],
 	dependencies: [
-		.package(url: "https://github.com/ChimeHQ/Ligature", branch: "main"),
+		.package(url: "https://github.com/ChimeHQ/Ligature", revision: "b184b82dd4c68327ed37257d1b60fc9f41a50042"),
 		.package(url: "https://github.com/ChimeHQ/KeyCodes", from: "1.0.3"),
 	],
 	targets: [
 		.target(name: "IBeam", dependencies: ["KeyCodes", "Ligature"]),
-		.testTarget(name: "IBeamTests", dependencies: ["IBeam"]),
+		.testTarget(name: "IBeamTests", dependencies: ["IBeam", "Ligature"]),
 	]
 )

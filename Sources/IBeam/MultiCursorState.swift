@@ -5,24 +5,26 @@ import UIKit
 #endif
 
 import KeyCodes
+import Ligature
 
 public enum SelectionAffinity: Hashable, Sendable, Codable {
 	case upstream
 	case downstream
 }
 
-public struct MultiCursorState<CoordinateProvider: TextCoordinateProvider> {
-	public typealias TextLocation = CoordinateProvider.TextLocation
-	public typealias Cursor = IBeam.Cursor<TextLocation>
+@MainActor
+public final class MultiCursorState<Tokenizer: TextTokenizer> where Tokenizer.Position: Comparable {
+	public typealias Position = Tokenizer.Position
+	public typealias Cursor = IBeam.Cursor<Position>
 
 	public var affinity: SelectionAffinity
     public var cursors: [Cursor]
-	public let coordinateProvider: CoordinateProvider
+	public let tokenizer: Tokenizer
 
-	public init(cursors: [Cursor] = [], affinity: SelectionAffinity = .upstream, coordinateProvider: CoordinateProvider) {
+	public init(cursors: [Cursor] = [], affinity: SelectionAffinity = .upstream, tokenizer: Tokenizer) {
         self.cursors = cursors
 		self.affinity = affinity
-		self.coordinateProvider = coordinateProvider
+		self.tokenizer = tokenizer
     }
 
     public var hasMultipleCursors: Bool {
@@ -35,15 +37,15 @@ extension MultiCursorState {
 
 	}
 
-	public mutating func addCursorBelow() {
+	public func addCursorBelow() {
 		guard let range = cursors.last?.range else {
 			assertionFailure("at least one cursor should be present")
 			return
 		}
 
 		guard
-			let start = coordinateProvider.closestMatchingVerticalLocation(to: range.lowerBound, above: false),
-			let end = coordinateProvider.closestMatchingVerticalLocation(to: range.upperBound, above: false)
+			let start = tokenizer.position(from: range.lowerBound, toBoundary: .character, inDirection: .layout(.down)),
+			let end = tokenizer.position(from: range.upperBound, toBoundary: .character, inDirection: .layout(.down))
 		else {
 			return
 		}
@@ -54,8 +56,8 @@ extension MultiCursorState {
 		self.cursors.sort()
 	}
 
-	public mutating func addCursor(at location: TextLocation) {
-		let newCursor = Cursor(range: location..<location)
+	public func addCursor(at position: Position) {
+		let newCursor = Cursor(range: position..<position)
 
 		self.cursors.append(newCursor)
 		self.cursors.sort()
@@ -63,10 +65,11 @@ extension MultiCursorState {
 }
 
 extension MultiCursorState {
+#if os(macOS)
     /// Process a keyDown event
     ///
     /// - Returns: true if the event was processed and should now be ignored.
-	public mutating func handleKeyDown(with event: NSEvent) -> Bool {
+	public func handleKeyDown(with event: NSEvent) -> Bool {
 		let flags = event.keyModifierFlags?.subtracting(.numericPad) ?? []
 		let key = event.keyboardHIDUsage
 
@@ -77,14 +80,36 @@ extension MultiCursorState {
 		case ([.control, .shift], .keyboardDownArrow):
 			addCursorBelow()
             return true
+		case ([], .keyboardLeftArrow):
+			moveLeft(self)
+			return true
 		default:
 			break
 		}
 
-        guard hasMultipleCursors else {
-            return false
-        }
-
 		return false
+	}
+#endif
+}
+
+extension MultiCursorState {
+	public func moveLeft(_ sender: Any?) {
+		self.cursors = cursors.compactMap { cursor in
+			let start = cursor.range.lowerBound
+			guard let newStart = tokenizer.position(from: start, toBoundary: .character, inDirection: .layout(.left)) else {
+				return nil
+			}
+
+			var cursor = cursor
+
+			switch affinity {
+			case .upstream:
+				cursor.range = newStart..<newStart
+			case .downstream:
+				cursor.range = newStart..<cursor.range.upperBound
+			}
+
+			return cursor
+		}
 	}
 }

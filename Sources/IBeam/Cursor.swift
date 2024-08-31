@@ -10,7 +10,7 @@ public struct Cursor<TextLocation: Comparable>: Identifiable {
 	public typealias TextRange = Range<TextLocation>
 
 	public let id: UUID
-	public let range: TextRange
+	public var range: TextRange
 
 	public init(range: TextRange) {
 		self.range = range

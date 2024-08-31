@@ -1,6 +1,15 @@
 {
-  "originHash" : "a37ab791b028e91ba927aed2f01979a802c12b4164919a272b77af2d9e021dbb",
+  "originHash" : "00743848cbb91a47eb19084a5d4a354ab430ceab782cdee3f3c57556b13f019f",
   "pins" : [
+    {
+      "identity" : "keycodes",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ChimeHQ/KeyCodes",
+      "state" : {
+        "revision" : "93ba759d2bfd7b5233294188bc685fd09dce2729",
+        "version" : "1.0.3"
+      }
+    },
     {
       "identity" : "ligature",
       "kind" : "remoteSourceControl",

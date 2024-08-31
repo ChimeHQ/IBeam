@@ -6,24 +6,26 @@ import UIKit
 
 import Ligature
 
-#if os(macOS) || os(iOS) || os(visionOS)
-public struct Cursor {
-	public let ranges: [NSTextRange]
-	public let affinity: NSTextSelection.Affinity
-	public let granularity: TextGranularity
+public struct Cursor<TextLocation: Comparable>: Identifiable {
+	public typealias TextRange = Range<TextLocation>
 
-	public init(ranges: [NSTextRange], affinity: NSTextSelection.Affinity, granularity: TextGranularity = .character) {
-		self.ranges = ranges
-		self.affinity = affinity
-		self.granularity = granularity
-	}
+	public let id: UUID
+	public let range: TextRange
 
-#if os(macOS)
-	public init(ranges: [NSTextRange], affinity: NSSelectionAffinity, granularity: TextGranularity = .character) {
-		self.ranges = ranges
-		self.affinity = NSTextSelection.Affinity(affinity)
-		self.granularity = granularity
+	public init(range: TextRange) {
+		self.range = range
+		self.id = UUID()
 	}
-#endif
 }
-#endif
+
+extension Cursor: Comparable {
+	public static func < (lhs: Cursor<TextLocation>, rhs: Cursor<TextLocation>) -> Bool {
+		lhs.range.lowerBound < rhs.range.lowerBound
+	}
+}
+
+extension Cursor: Equatable where TextRange: Equatable {}
+extension Cursor: Hashable where TextRange: Hashable {}
+extension Cursor: Sendable where TextRange: Sendable {}
+extension Cursor: Decodable where TextRange: Decodable {}
+extension Cursor: Encodable where TextRange: Encodable {}

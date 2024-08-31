@@ -15,9 +15,10 @@ let package = Package(
 	],
 	dependencies: [
 		.package(url: "https://github.com/ChimeHQ/Ligature", branch: "main"),
+		.package(url: "https://github.com/ChimeHQ/KeyCodes", from: "1.0.3"),
 	],
 	targets: [
-		.target(name: "IBeam", dependencies: ["Ligature"]),
+		.target(name: "IBeam", dependencies: ["KeyCodes", "Ligature"]),
 		.testTarget(name: "IBeamTests", dependencies: ["IBeam"]),
 	]
 )

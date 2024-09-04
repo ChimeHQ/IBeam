@@ -1,26 +1,16 @@
-#if os(macOS)
-import AppKit
-#elseif os(iOS) || os(visionOS)
-import UIKit
-#endif
+import Foundation
 
-import Ligature
-
-public struct Cursor<TextLocation: Comparable>: Identifiable {
-	public typealias TextRange = Range<TextLocation>
-
+public struct Cursor<TextRange>: Identifiable {
 	public let id: UUID
-	public var range: TextRange
+	public var textRanges: [TextRange]
 
-	public init(range: TextRange) {
-		self.range = range
+	public init(textRanges: [TextRange]) {
+		self.textRanges = textRanges
 		self.id = UUID()
 	}
-}
 
-extension Cursor: Comparable {
-	public static func < (lhs: Cursor<TextLocation>, rhs: Cursor<TextLocation>) -> Bool {
-		lhs.range.lowerBound < rhs.range.lowerBound
+	public init(textRange: TextRange) {
+		self.init(textRanges: [textRange])
 	}
 }
 

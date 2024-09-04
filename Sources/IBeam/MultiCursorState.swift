@@ -7,29 +7,60 @@ import UIKit
 import KeyCodes
 import Ligature
 
-public enum SelectionAffinity: Hashable, Sendable, Codable {
-	case upstream
-	case downstream
-}
-
 @MainActor
-public final class MultiCursorState<Tokenizer: TextTokenizer> where Tokenizer.Position: Comparable {
+public final class MultiCursorState<Tokenizer: TextTokenizer> {
 	public typealias Position = Tokenizer.Position
-	public typealias Cursor = IBeam.Cursor<Position>
+	public typealias TextRange = Tokenizer.TextRange
+	public typealias Processor = SelectionProcessor<Tokenizer>
 
-	public var affinity: SelectionAffinity
-    public var cursors: [Cursor]
-	public let tokenizer: Tokenizer
+	public var layoutDirection: UserInterfaceLayoutDirection
+	public private(set) var cursors: [Cursor<TextRange>]
+	public let processor: Processor
 
-	public init(cursors: [Cursor] = [], affinity: SelectionAffinity = .upstream, tokenizer: Tokenizer) {
+	public init(
+		cursors: [Cursor<TextRange>] = [],
+		layoutDirection: UserInterfaceLayoutDirection = .leftToRight,
+		processor: Processor
+	) {
         self.cursors = cursors
-		self.affinity = affinity
-		self.tokenizer = tokenizer
+		self.layoutDirection = layoutDirection
+		self.processor = processor
     }
 
     public var hasMultipleCursors: Bool {
         cursors.isEmpty == false
     }
+
+	public var textRanges: [TextRange] {
+		cursors.flatMap { $0.textRanges }
+	}
+
+	var tokenizer: Tokenizer {
+		processor.tokenizer
+	}
+
+	private func sortCursors() {
+		self.cursors.sort { a, b in
+			let aFirst = a.textRanges.first
+			let bFirst = b.textRanges.first
+
+			return processor.positionComparator(aFirst!.lowerBound, bFirst!.lowerBound)
+		}
+	}
+}
+
+extension MultiCursorState where TextRange == Range<Int> {
+	public convenience init(
+		cursors: [Cursor<TextRange>] = [],
+		layoutDirection: UserInterfaceLayoutDirection = .leftToRight,
+		tokenizer: Tokenizer
+	) {
+		self.init(
+			cursors: cursors,
+			layoutDirection: layoutDirection,
+			processor: SelectionProcessor(tokenizer: tokenizer)
+		)
+	}
 }
 
 extension MultiCursorState {
@@ -38,29 +69,27 @@ extension MultiCursorState {
 	}
 
 	public func addCursorBelow() {
-		guard let range = cursors.last?.range else {
-			assertionFailure("at least one cursor should be present")
+		guard let cursor = cursors.last else {
+			assertionFailure("must have at least one cursor")
 			return
 		}
 
-		guard
-			let start = tokenizer.position(from: range.lowerBound, toBoundary: .character, inDirection: .layout(.down)),
-			let end = tokenizer.position(from: range.upperBound, toBoundary: .character, inDirection: .layout(.down))
-		else {
-			return
-		}
+		let newRanges = cursor.textRanges.compactMap { processor.moveDown($0) }
 
-		let newCursor = Cursor(range: start..<end)
+		cursors.append(Cursor(textRanges: newRanges))
 
-		self.cursors.append(newCursor)
-		self.cursors.sort()
 	}
 
 	public func addCursor(at position: Position) {
-		let newCursor = Cursor(range: position..<position)
+		guard let range = processor.rangeBuilder(position, position) else {
+			return
+		}
 
+		let newCursor = Cursor(textRange: range)
+
+		// insertion would be more efficient
 		self.cursors.append(newCursor)
-		self.cursors.sort()
+		sortCursors()
 	}
 }
 
@@ -81,7 +110,7 @@ extension MultiCursorState {
 			addCursorBelow()
             return true
 		case ([], .keyboardLeftArrow):
-			moveLeft(self)
+			moveLeft()
 			return true
 		default:
 			break
@@ -92,24 +121,23 @@ extension MultiCursorState {
 #endif
 }
 
+// MARK: Responder functions
 extension MultiCursorState {
-	public func moveLeft(_ sender: Any?) {
+	private func updateCursorRanges(in direction: TextDirection) {
 		self.cursors = cursors.compactMap { cursor in
-			let start = cursor.range.lowerBound
-			guard let newStart = tokenizer.position(from: start, toBoundary: .character, inDirection: .layout(.left)) else {
-				return nil
-			}
+			var newCursor = cursor
 
-			var cursor = cursor
+			newCursor.textRanges = cursor.textRanges.compactMap { processor.range(from: $0, to: .character, in: direction) }
 
-			switch affinity {
-			case .upstream:
-				cursor.range = newStart..<newStart
-			case .downstream:
-				cursor.range = newStart..<cursor.range.upperBound
-			}
-
-			return cursor
+			return newCursor
 		}
+	}
+
+	public func moveLeft() {
+		updateCursorRanges(in: .layout(.left))
+	}
+
+	public func moveRight() {
+		updateCursorRanges(in: .layout(.right))
 	}
 }

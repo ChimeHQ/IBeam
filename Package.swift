@@ -14,7 +14,7 @@ let package = Package(
 		.library(name: "IBeam", targets: ["IBeam"]),
 	],
 	dependencies: [
-		.package(url: "https://github.com/ChimeHQ/Ligature", revision: "b184b82dd4c68327ed37257d1b60fc9f41a50042"),
+		.package(url: "https://github.com/ChimeHQ/Ligature", revision: "2da2638e59eef2aa6ce0e2078d4e075267bacd4b"),
 		.package(url: "https://github.com/ChimeHQ/KeyCodes", from: "1.0.3"),
 	],
 	targets: [

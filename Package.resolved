@@ -1,5 +1,5 @@
 {
-  "originHash" : "00743848cbb91a47eb19084a5d4a354ab430ceab782cdee3f3c57556b13f019f",
+  "originHash" : "c3e69462fdc46e23d7a49145a7ff88363cd0bdb56d70bbf70da1a03c4042d960",
   "pins" : [
     {
       "identity" : "keycodes",
@@ -15,8 +15,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ChimeHQ/Ligature",
       "state" : {
-        "branch" : "main",
-        "revision" : "036f19ec8e491dd8c46a7e50df552819e4ed3a00"
+        "revision" : "2da2638e59eef2aa6ce0e2078d4e075267bacd4b"
       }
     }
   ],

@@ -14,7 +14,7 @@ Features:
 
 - Text system-agnostic
 - Includes support for `NSTextView` and `UITextView`
-- Lazy cursor operation evaluation to support large numbers of cursors
+- Lazy/deferred cursor operation evaluation
 
 > [!WARNING]
 > Still early days. Lazy evaluation in particular is a work in progress.

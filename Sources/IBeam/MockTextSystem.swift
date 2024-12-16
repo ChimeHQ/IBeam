@@ -89,6 +89,6 @@ public final class MockTextSystem : TextSystem {
 	}
 
 	public func applyMutation(_ range: TextRange, string: AttributedString) -> MutationOutput<TextRange>? {
-		partialSystem.applyMutation(range, string: string)
+		partialSystem.applyMutation(in: range, string: string, undoManager: nil)
 	}
 }

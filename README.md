@@ -12,11 +12,12 @@ A Swift library for multi-cursor support
 
 Features:
 
-- Text system agnostic
-- Includes support for `NSTextView`
+- Text system-agnostic
+- Includes support for `NSTextView` and `UITextView`
+- Lazy cursor operation evaluation to support large numbers of cursors
 
 > [!WARNING]
-> Still very much a WIP.
+> Still early days. Lazy evaluation in particular is a work in progress.
 
 ## Integration
 
@@ -25,6 +26,143 @@ dependencies: [
     .package(url: "https://github.com/ChimeHQ/IBeam", branch: "main")
 ]
 ```
+
+## Concepts
+
+The `MultiCursorState` type accepts two kinds of events to manage cursor states: `InputOperation` and `CursorOperation`.
+
+The `InputOperation` type models the use actions that affect selection and text state. This closely mirrors selectors within `NSResponder`. The `CursorOperation` type models actions that affect the number active cursors. The client of a `MultiCursorState` instance feeds in these two types of operations, and the state manages querying and relaying mutations to its `TextSystem` instance to execute those operations.
+
+To support large numbers of cursors, `MultiCursorState` plays tricks. In particular, it may delay, combine, or otherwise reorder operations if can do so in a way that does not impact visible user state. These can be essential for performance, but you can always force a fully up-to-date system with the `ensureOperationsProcessed` methods.
+
+## Implementing a Text System
+
+IBeam needs to be provided with an interface to the underlying text system. The functionality required to do this is non-trivial, especially when the concepts of "range" and "text location" are fully generic.
+
+If you are interested in just connecting this up to AppKit/UIKit, you can do this with [IBeamTextViewSystem](IBeamTextViewSystem.swift). It makes use of [Ligature][] to efficiently implement the needed facilities. And, because that library is implemented with [Glyph][] internally, it is compatible with both TextKit 1 and 2.
+
+[Ligature]: https://github.com/ChimeHQ/Ligature
+[Glyph]: https://github.com/ChimeHQ/Glyph
+
+This is a fair bit of work, but it is not included in this library for three reasons:
+
+- Ligature and Glyph may only make sense if you are using a pure NS/UITextView implementation
+- A custom view subclass likely means you'll need to do customization on your own anyways
+
+If you need or want to implement a custom system, take a look at the `TextSystem` protocol. It offers a lot of flexibility, particularly around how your system applies text mutations.
+
+If you are on macOS 14.0 or greater, you can use the `TextViewIndicatorState` type to manage cursor views.
+
+## Usage
+
+Here's an example of using a `TextSystemCursorCoordinator` and `IBeamTextViewSystem` that ties everything together for an `NSTextView`. Unfortunately, a subclass is required, but it's fairly minimal.
+
+This also makes use of the [KeyCodes][] library to make modifier key checks easier.
+
+[KeyCodes]: https://github.com/chimeHQ/KeyCodes
+
+```swift
+import AppKit
+
+import KeyCodes
+import IBeam
+
+extension KeyModifierFlags {
+    var addingCursor: Bool {
+        subtracting(.numericPad) == [.control, .shift]
+    }
+}
+
+open class MultiCursorTextView: NSTextView {
+    // this is a retain cycle, but it's convenient
+    private lazy var coordinator = TextSystemCursorCoordinator(
+        textView: self,
+        system: IBeamTextViewSystem(textView: self)
+    )
+
+    public var operationProcessor: (InputOperation) -> Void = { _ in }
+    public var cursorOperationHandler: (CursorOperation<NSRange>) -> Void = { _ in }
+
+    override public init(frame frameRect: NSRect, textContainer: NSTextContainer?) {
+        super.init(frame: frameRect, textContainer: textContainer)
+
+        self.operationProcessor = coordinator.processOperation
+        self.cursorOperationHandler = coordinator.mutateCursors
+    }
+
+    required public init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+extension MultiCursorTextView {
+    open override func insertText(_ input: Any, replacementRange: NSRange) {
+        // also should handle replacementRange values
+
+        let attrString: AttributedString
+
+        switch input {
+        case let string as String:
+            let container = AttributeContainer(typingAttributes)
+
+            attrString = AttributedString(string, attributes: container)
+        case let string as NSAttributedString:
+            attrString = AttributedString(string)
+        default:
+            fatalError("This API should be called with NSString or NSAttributedString only")
+        }
+
+        operationProcessor(.insertText(attrString))
+    }
+
+    open override func doCommand(by selector: Selector) {
+        if let op = InputOperation(selector: selector) {
+            operationProcessor(op)
+            return
+        }
+
+        super.doCommand(by: selector)
+    }
+
+    // this enable correct routing for the mouse down
+    open override func menu(for event: NSEvent) -> NSMenu? {
+        if event.keyModifierFlags?.addingCursor == true {
+            return nil
+        }
+
+        return super.menu(for: event)
+    }
+
+    open override func mouseDown(with event: NSEvent) {
+        guard event.keyModifierFlags?.addingCursor == true else {
+            super.mouseDown(with: event)
+            return
+        }
+
+        let point = convert(event.locationInWindow, from: nil)
+        let index = characterIndexForInsertion(at: point)
+        let range = NSRange(index..<index)
+
+        cursorOperationHandler(.add(range))
+    }
+
+    open override func keyDown(with event: NSEvent) {
+        let flags = event.keyModifierFlags?.subtracting(.numericPad) ?? []
+        let key = event.keyboardHIDUsage
+
+        switch (flags, key) {
+        case ([.control, .shift], .keyboardUpArrow):
+            cursorOperationHandler(.addAbove)
+        case ([.control, .shift], .keyboardDownArrow):
+            cursorOperationHandler(.addBelow)
+        default:
+            super.keyDown(with: event)
+        }
+    }
+}
+```
+
+Of course, you can also just customize everything. This is required if you want to use a custom TextSystem implementation or just exert more control over how the view interacts with its cursors.
 
 ## Contributing and Collaboration
 

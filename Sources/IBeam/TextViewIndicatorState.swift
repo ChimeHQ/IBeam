@@ -1,0 +1,71 @@
+#if os(macOS)
+import AppKit
+
+/// Manages cursor view isntances within an NSTextView
+@available(macOS 14.0, *)
+@MainActor
+public final class TextViewIndicatorState {
+	public typealias BoundingRectProvider = (NSRange) -> CGRect?
+
+	public let textView: NSTextView
+	public let viewCursorId: UUID
+
+	private var indicators: [UUID: NSTextInsertionIndicator] = [:]
+	public var boundingRectProvider: BoundingRectProvider = { _ in nil }
+
+	public init(textView: NSTextView, viewCursorId: UUID) {
+		self.textView = textView
+		self.viewCursorId = viewCursorId
+	}
+
+	private var indicatorViews: [NSTextInsertionIndicator] {
+		textView.subviews
+			.compactMap { $0 as? NSTextInsertionIndicator }
+			.sorted { a, b in
+				a.frame.minY < b.frame.minY
+			}
+	}
+
+	private func synchronizeCusorBlinking() {
+		for view in indicatorViews {
+			view.displayMode = .hidden
+			view.displayMode = .automatic
+		}
+
+		textView.updateInsertionPointStateAndRestartTimer(true)
+	}
+
+	public func removeIndicator(with id: UUID) {
+		if id == viewCursorId {
+			return
+		}
+
+		indicators[id]!.removeFromSuperview()
+		indicators[id] = nil
+	}
+
+	public func updateIndictor(with range: NSRange, for id: UUID) {
+		if id == viewCursorId {
+			textView.setSelectedRange(range, affinity: .upstream, stillSelecting: false)
+			return
+		}
+
+		guard let rect = boundingRectProvider(range) else {
+			return
+		}
+
+		defer { synchronizeCusorBlinking() }
+
+		if let indicator = indicators[id] {
+			indicator.frame = rect
+			return
+		}
+
+		let indicator = NSTextInsertionIndicator(frame: rect)
+
+		indicators[id] = indicator
+
+		textView.addSubview(indicator)
+	}
+}
+#endif

@@ -1,143 +1,215 @@
-#if os(macOS)
-import AppKit
-#elseif os(iOS) || os(visionOS)
-import UIKit
-#endif
+import Foundation
 
-import KeyCodes
-import Ligature
+public enum CursorOperation<TextRange> {
+	case resetToSingle(Cursor<TextRange>)
+	case add(TextRange)
+	case addAbove
+	case addBelow
 
-@MainActor
-public final class MultiCursorState<Tokenizer: TextTokenizer> {
-	public typealias Position = Tokenizer.Position
-	public typealias TextRange = Tokenizer.TextRange
-	public typealias Processor = SelectionProcessor<Tokenizer>
+	// this is nearly a map
+	public func translate<OtherRange>(with translator: (TextRange) -> OtherRange?) -> CursorOperation<OtherRange>? {
+		switch self {
+		case .addAbove:
+			return .addAbove
+		case .addBelow:
+			return .addBelow
+		case let .add(textRange):
+			guard let otherRange = translator(textRange) else {
+				return nil
+			}
 
-	public var layoutDirection: UserInterfaceLayoutDirection
-	public private(set) var cursors: [Cursor<TextRange>]
-	public let processor: Processor
+			return .add(otherRange)
+		case let .resetToSingle(cursor):
+			guard let otherRange = translator(cursor.textRange) else {
+				return nil
+			}
 
-	public init(
-		cursors: [Cursor<TextRange>] = [],
-		layoutDirection: UserInterfaceLayoutDirection = .leftToRight,
-		processor: Processor
-	) {
-        self.cursors = cursors
-		self.layoutDirection = layoutDirection
-		self.processor = processor
-    }
+			let newCursor = Cursor<OtherRange>(id: cursor.id, textRange: otherRange, alignment: cursor.alignment)
 
-    public var hasMultipleCursors: Bool {
-        cursors.isEmpty == false
-    }
+			return .resetToSingle(newCursor)
+		}
+	}
+}
 
-	public var textRanges: [TextRange] {
-		cursors.flatMap { $0.textRanges }
+public final class MultiCursorState<System: TextSystem> {
+	public typealias TextRange = System.TextRange
+
+	typealias Processor = InputOperationProcessor<System>
+
+	public var cursors: [Cursor<TextRange>] {
+		didSet {
+			let current = Set(cursors.map({ $0.id }))
+			let old = Set(oldValue.map({ $0.id }))
+
+			let deleted = old.subtracting(current)
+			let added = current.subtracting(old)
+			let changed = current.intersection(old)
+
+			cursorsChanged(added, deleted, changed)
+		}
+	}
+	
+	private var validRange = 0..<0
+	private var leadingPendingOperations: [InputOperation] = []
+	private var trailingPendingOperations: [InputOperation] = []
+	private let processor: Processor
+
+	/// Added, Deleted, Changed
+	public var cursorsChanged: (Set<UUID>, Set<UUID>, Set<UUID>) -> Void = { _, _, _ in }
+
+	public init(cursors: [Cursor<TextRange>], system: System) {
+		self.cursors = cursors
+		self.processor = Processor(textSystem: system)
 	}
 
-	var tokenizer: Tokenizer {
-		processor.tokenizer
+	public var textSystem: System {
+		processor.textSystem
+	}
+}
+
+extension MultiCursorState {
+	public func apply(_ operation: InputOperation) {
+		let priorityRange = processor.fullRange
+
+		apply(operation, prioritizing: priorityRange)
 	}
 
+	public func apply(_ operation: InputOperation, prioritizing priorityRange: TextRange) {
+		// for now, we're going to ignore the valid window
+
+		var deltaSum = 0
+
+		var deletedIndexes: [Int] = []
+
+		var newCusors = cursors
+
+		for index in newCusors.indices {
+			var cursor = newCusors[index]
+
+			guard let output = processor.apply(operation, to: cursor, delta: deltaSum) else {
+				deletedIndexes.append(index)
+				continue
+			}
+
+			// is it sufficient to just check the previous?
+			if index > 0 {
+				let prev = newCusors[index - 1]
+
+				if textSystem.intersection(of: output.selection, with: prev.textRange) != nil {
+					deletedIndexes.append(index)
+
+					// and does it makes sense to do this?
+					deltaSum += output.delta
+					continue
+				}
+			}
+
+			cursor.textRange = output.selection
+
+			if operation.affectsAlignment {
+				cursor.alignment = location(for: output.selection)
+			}
+
+			newCusors[index] = cursor
+
+			deltaSum += output.delta
+		}
+
+		// I think this is bad...
+		for index in deletedIndexes.reversed() {
+			newCusors.remove(at: index)
+		}
+
+		self.cursors = newCusors
+	}
+
+	public func ensureOperationsProcessed() {
+		ensureOperationsProcessed(for: processor.fullRange)
+	}
+
+	public func ensureOperationsProcessed(for range: TextRange) {
+
+	}
+
+}
+
+extension MultiCursorState {
 	private func sortCursors() {
 		self.cursors.sort { a, b in
-			let aFirst = a.textRanges.first
-			let bFirst = b.textRanges.first
+			let aLower = processor.textSystem.positions(composing: a.textRange).0
+			let bLower = processor.textSystem.positions(composing: b.textRange).0
 
-			return processor.positionComparator(aFirst!.lowerBound, bFirst!.lowerBound)
-		}
-	}
-}
-
-extension MultiCursorState where TextRange == Range<Int> {
-	public convenience init(
-		cursors: [Cursor<TextRange>] = [],
-		layoutDirection: UserInterfaceLayoutDirection = .leftToRight,
-		tokenizer: Tokenizer
-	) {
-		self.init(
-			cursors: cursors,
-			layoutDirection: layoutDirection,
-			processor: SelectionProcessor(tokenizer: tokenizer)
-		)
-	}
-}
-
-extension MultiCursorState {
-    public func addCursorAbove() {
-
-	}
-
-	public func addCursorBelow() {
-		guard let cursor = cursors.last else {
-			assertionFailure("must have at least one cursor")
-			return
-		}
-
-		let newRanges = cursor.textRanges.compactMap { processor.moveDown($0) }
-
-		cursors.append(Cursor(textRanges: newRanges))
-
-	}
-
-	public func addCursor(at position: Position) {
-		guard let range = processor.rangeBuilder(position, position) else {
-			return
-		}
-
-		let newCursor = Cursor(textRange: range)
-
-		// insertion would be more efficient
-		self.cursors.append(newCursor)
-		sortCursors()
-	}
-}
-
-extension MultiCursorState {
-#if os(macOS)
-    /// Process a keyDown event
-    ///
-    /// - Returns: true if the event was processed and should now be ignored.
-	public func handleKeyDown(with event: NSEvent) -> Bool {
-		let flags = event.keyModifierFlags?.subtracting(.numericPad) ?? []
-		let key = event.keyboardHIDUsage
-
-		switch (flags, key) {
-		case ([.control, .shift], .keyboardUpArrow):
-			addCursorAbove()
-            return true
-		case ([.control, .shift], .keyboardDownArrow):
-			addCursorBelow()
-            return true
-		case ([], .keyboardLeftArrow):
-			moveLeft()
-			return true
-		default:
-			break
-		}
-
-		return false
-	}
-#endif
-}
-
-// MARK: Responder functions
-extension MultiCursorState {
-	private func updateCursorRanges(in direction: TextDirection) {
-		self.cursors = cursors.compactMap { cursor in
-			var newCursor = cursor
-
-			newCursor.textRanges = cursor.textRanges.compactMap { processor.range(from: $0, to: .character, in: direction) }
-
-			return newCursor
+			return processor.textSystem.compare(aLower, to: bLower) == .orderedAscending
 		}
 	}
 
-	public func moveLeft() {
-		updateCursorRanges(in: .layout(.left))
+	private func location(for range: TextRange) -> CGFloat? {
+		textSystem.boundingRect(for: range)?.origin.x
 	}
 
-	public func moveRight() {
-		updateCursorRanges(in: .layout(.right))
+	public func mutateCursors(with operation: CursorOperation<TextRange>) {
+		switch operation {
+		case var .resetToSingle(cursor):
+			var deleted = Set(cursors.map({ $0.id }))
+
+			deleted.remove(cursor.id)
+
+			cursor.alignment = location(for: cursor.textRange)
+
+			self.cursors = [cursor]
+
+			cursorsChanged(deleted, Set(), Set([cursor.id]))
+
+		case let .add(textRange):
+			let alignment = location(for: textRange)
+			let newCursor = Cursor(textRange, alignment: alignment)
+
+			// insertion would be more efficient
+			self.cursors.append(newCursor)
+			sortCursors()
+
+			cursorsChanged(Set([newCursor.id]), Set(), Set())
+		case .addAbove:
+			guard let cursor = cursors.first else { return }
+
+			guard
+				let textRange = textSystem.textRange(
+					from: cursor.textRange,
+					moving: .up(alignment: cursor.alignment),
+					by: .character
+				)
+			else {
+				fatalError()
+			}
+
+			let alignment = location(for: textRange)
+			let newCursor = Cursor(textRange, alignment: alignment)
+
+			self.cursors.insert(newCursor, at: 0)
+
+			cursorsChanged(Set([newCursor.id]), Set(), Set())
+
+		case .addBelow:
+			guard let cursor = cursors.last else {
+				return
+			}
+
+			guard
+				let textRange = processor.textSystem.textRange(
+					from: cursor.textRange,
+					moving: .down(alignment: cursor.alignment),
+					by: .character
+				)
+			else {
+				fatalError()
+			}
+
+			let alignment = location(for: textRange)
+			let newCursor = Cursor(textRange, alignment: alignment)
+
+			self.cursors.append(newCursor)
+
+			cursorsChanged(Set([newCursor.id]), Set(), Set())
+		}
 	}
 }

@@ -1,4 +1,4 @@
-// swift-tools-version: 5.10
+// swift-tools-version: 6.0
 
 import PackageDescription
 
@@ -13,12 +13,8 @@ let package = Package(
 	products: [
 		.library(name: "IBeam", targets: ["IBeam"]),
 	],
-	dependencies: [
-		.package(url: "https://github.com/ChimeHQ/Ligature", revision: "2da2638e59eef2aa6ce0e2078d4e075267bacd4b"),
-		.package(url: "https://github.com/ChimeHQ/KeyCodes", from: "1.0.3"),
-	],
 	targets: [
-		.target(name: "IBeam", dependencies: ["KeyCodes", "Ligature"]),
-		.testTarget(name: "IBeamTests", dependencies: ["IBeam", "Ligature"]),
+		.target(name: "IBeam"),
+		.testTarget(name: "IBeamTests", dependencies: ["IBeam"]),
 	]
 )

@@ -6,7 +6,7 @@ import AppKit
 public final class TextSystemCursorCoordinator<System: TextSystem> where System.TextRange == NSRange {
 	typealias CursorState = MultiCursorState<System>
 
-	private let textView: NSTextView
+	private weak var textView: NSTextView?
 	private let indicatorState: TextViewIndicatorState
 	private let cursorState: CursorState
 	private var selectionNotification: NSObjectProtocol?
@@ -40,7 +40,7 @@ public final class TextSystemCursorCoordinator<System: TextSystem> where System.
 	}
 
 	private func selectionChanged() {
-		if mutatingSelection {
+		guard let textView, mutatingSelection == false else {
 			return
 		}
 
@@ -68,7 +68,7 @@ public final class TextSystemCursorCoordinator<System: TextSystem> where System.
 		mutatingSelection = false
 	}
 
-	public func processOperation(_ operation: InputOperation) {
+	public func processOperation(_ operation: InputOperation) -> Bool {
 		mutatingSelection = true
 		cursorState.apply(operation)
 		mutatingSelection = false
@@ -78,6 +78,8 @@ public final class TextSystemCursorCoordinator<System: TextSystem> where System.
 		if cursorState.cursors.isEmpty {
 			selectionChanged()
 		}
+
+		return true
 	}
 
 	public func mutateCursors(with operation: CursorOperation<NSRange>) {

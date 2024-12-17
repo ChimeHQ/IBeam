@@ -1,13 +1,15 @@
 #if os(macOS)
 import AppKit
 
-/// Manages cursor view isntances within an NSTextView
+/// Manages cursor view isntances within an NSTextView.
+///
+/// This type maintains a weak reference to the underlying text view.
 @available(macOS 14.0, *)
 @MainActor
 public final class TextViewIndicatorState {
 	public typealias BoundingRectProvider = (NSRange) -> CGRect?
 
-	public let textView: NSTextView
+	private weak var textView: NSTextView?
 	public let viewCursorId: UUID
 
 	private var indicators: [UUID: NSTextInsertionIndicator] = [:]
@@ -19,7 +21,9 @@ public final class TextViewIndicatorState {
 	}
 
 	private var indicatorViews: [NSTextInsertionIndicator] {
-		textView.subviews
+		guard let textView else { return [] }
+
+		return textView.subviews
 			.compactMap { $0 as? NSTextInsertionIndicator }
 			.sorted { a, b in
 				a.frame.minY < b.frame.minY
@@ -32,7 +36,7 @@ public final class TextViewIndicatorState {
 			view.displayMode = .automatic
 		}
 
-		textView.updateInsertionPointStateAndRestartTimer(true)
+		textView?.updateInsertionPointStateAndRestartTimer(true)
 	}
 
 	public func removeIndicator(with id: UUID) {
@@ -45,6 +49,8 @@ public final class TextViewIndicatorState {
 	}
 
 	public func updateIndictor(with range: NSRange, for id: UUID) {
+		guard let textView else { return }
+		
 		if id == viewCursorId {
 			textView.setSelectedRange(range, affinity: .upstream, stillSelecting: false)
 			return

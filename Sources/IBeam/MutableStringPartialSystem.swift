@@ -82,30 +82,17 @@ extension MutableStringPartialSystem {
 		content.endEditing()
 	}
 
-//	public func applyMutation(_ range: NSRange, string: AttributedString) -> MutationOutput<NSRange>? {
-//		let nsAttrString = NSAttributedString(string)
-//		let length = nsAttrString.length
-//
-//		content.replaceCharacters(in: range, with: nsAttrString)
-//
-//		let delta = length - range.length
-//		let position = min(range.lowerBound + length, content.length)
-//
-//		let newSelection = NSRange(position..<position)
-//
-//		return MutationOutput<NSRange>(selection: newSelection, delta: delta)
-//	}
-
 	public func applyMutation(in range: NSRange, string: AttributedString, undoManager: UndoManager?) -> MutationOutput<NSRange> {
 		let nsAttrString = NSAttributedString(string)
 		let length = nsAttrString.length
 
 		let existingString = AttributedString(content.attributedSubstring(from: range))
+		let inverseRange = NSRange(location: range.location, length: length)
 
 		undoManager?.registerMainActorUndo(withTarget: content, handler: { target in
 			let existingNSAttrString = NSAttributedString(existingString)
 
-			target.replaceCharacters(in: range, with: existingNSAttrString)
+			target.replaceCharacters(in: inverseRange, with: existingNSAttrString)
 		})
 
 		content.replaceCharacters(in: range, with: nsAttrString)

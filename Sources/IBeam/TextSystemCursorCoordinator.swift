@@ -4,11 +4,11 @@ import AppKit
 @available(macOS 14.0, *)
 @MainActor
 public final class TextSystemCursorCoordinator<System: TextSystem> where System.TextRange == NSRange {
-	typealias CursorState = MultiCursorState<System>
+	public typealias CursorState = MultiCursorState<System>
 
 	private weak var textView: NSTextView?
 	private let indicatorState: TextViewIndicatorState
-	private let cursorState: CursorState
+	public let cursorState: CursorState
 	private var selectionNotification: NSObjectProtocol?
 	private var viewCursor: Cursor<CursorState.TextRange>
 	private var mutatingSelection = false

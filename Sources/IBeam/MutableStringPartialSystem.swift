@@ -86,14 +86,16 @@ extension MutableStringPartialSystem {
 		let nsAttrString = NSAttributedString(string)
 		let length = nsAttrString.length
 
-		let existingString = AttributedString(content.attributedSubstring(from: range))
-		let inverseRange = NSRange(location: range.location, length: length)
+		if let undoManager {
+			let existingString = AttributedString(content.attributedSubstring(from: range))
+			let inverseRange = NSRange(location: range.location, length: length)
 
-		undoManager?.registerMainActorUndo(withTarget: content, handler: { target in
-			let existingNSAttrString = NSAttributedString(existingString)
+			undoManager.registerUndo(withTarget: content, handler: { target in
+				let existingNSAttrString = NSAttributedString(existingString)
 
-			target.replaceCharacters(in: inverseRange, with: existingNSAttrString)
-		})
+				target.replaceCharacters(in: inverseRange, with: existingNSAttrString)
+			})
+		}
 
 		content.replaceCharacters(in: range, with: nsAttrString)
 

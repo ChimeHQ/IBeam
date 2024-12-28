@@ -74,7 +74,6 @@ extension KeyModifierFlags {
 }
 
 open class MultiCursorTextView: NSTextView {
-    // this is a retain cycle, but it's convenient
     private lazy var coordinator = TextSystemCursorCoordinator(
         textView: self,
         system: IBeamTextViewSystem(textView: self)

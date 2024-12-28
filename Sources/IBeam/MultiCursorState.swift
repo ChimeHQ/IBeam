@@ -65,6 +65,11 @@ public final class MultiCursorState<System: TextSystem> {
 	public var textSystem: System {
 		processor.textSystem
 	}
+
+	public var cursorSet: CursorSet<TextRange> {
+		// this is very inefficient
+		CursorSet(ranges: cursors.map({ $0.textRange }))
+	}
 }
 
 extension MultiCursorState {

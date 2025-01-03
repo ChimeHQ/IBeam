@@ -61,8 +61,11 @@ public final class TextSystemCursorCoordinator<System: TextSystem> where System.
 
 		mutatingSelection = true
 
+		// I'm not 100% sure, yet, if/how to choose this correctly in all cases.
+		let affinity = NSSelectionAffinity.downstream
+
 		for cursor in existingCursors {
-			indicatorState.updateIndictor(with: cursor.textRange, for: cursor.id)
+			indicatorState.updateIndictor(with: cursor.textRange, affinity: affinity, for: cursor.id)
 		}
 
 		mutatingSelection = false

@@ -48,11 +48,11 @@ public final class TextViewIndicatorState {
 		indicators[id] = nil
 	}
 
-	public func updateIndictor(with range: NSRange, for id: UUID) {
+	public func updateIndictor(with range: NSRange, affinity: NSSelectionAffinity, for id: UUID) {
 		guard let textView else { return }
 		
 		if id == viewCursorId {
-			textView.setSelectedRange(range, affinity: .upstream, stillSelecting: false)
+			textView.setSelectedRange(range, affinity: affinity, stillSelecting: false)
 			return
 		}
 

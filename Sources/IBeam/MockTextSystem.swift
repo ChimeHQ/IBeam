@@ -32,12 +32,13 @@ public final class MockTextSystem : TextSystem {
 	}
 
 	public func boundingRect(for range: NSRange) -> CGRect? {
-		switch responses.removeFirst() {
-		case let .boundingRect(value):
+		if case let .boundingRect(value) = responses.first {
+			responses.removeFirst()
+
 			return value
-		default:
-			fatalError("wrong return type")
 		}
+
+		return nil
 	}
 
 	// movement calculation

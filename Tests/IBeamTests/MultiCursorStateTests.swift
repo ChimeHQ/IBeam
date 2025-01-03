@@ -6,7 +6,7 @@ import IBeam
 extension MultiCursorState where System == MockTextSystem {
 	convenience init(string: String, textRanges: [(NSRange, CGFloat)]) {
 		self.init(
-			cursors: textRanges.map { Cursor($0.0, position: $0.1) },
+			cursors: textRanges.map { Cursor($0.0, alignment: $0.1) },
 			system: MockTextSystem(string)
 		)
 	}
@@ -56,8 +56,13 @@ final class MultiCursorStateTests {
 		)
 
 		state.textSystem.responses = [
+			.boundingRect(nil),
+
 			.position(5),
+			.boundingRect(nil),
+
 			.position(6),
+			.boundingRect(nil),
 		]
 
 		state.apply(.deleteBackwards(.character))
@@ -83,8 +88,11 @@ final class MultiCursorStateTests {
 		)
 
 		state.textSystem.responses = [
+			.boundingRect(nil),
 			.position(7),
+			.boundingRect(nil),
 			.position(9),
+			.boundingRect(nil),
 		]
 
 		state.apply(.moveLeft(.character))
@@ -94,7 +102,7 @@ final class MultiCursorStateTests {
 			NSRange(7..<7),
 			NSRange(9..<9),
 		]
-		#expect(state.cursors.map { $0.textRange } == expectedCursorRanges)
+		#expect(state.cursorSet.ranges == expectedCursorRanges)
 		#expect(state.textSystem.string == "aaaa\nbbbb\ncccc\n")
 	}
 
@@ -118,7 +126,7 @@ final class MultiCursorStateTests {
 			(NSRange(7..<7), 2.0),
 		]
 		#expect(state.cursors.map { $0.textRange } == expectedCursors.map({ $0.0 }))
-		#expect(state.cursors.map { $0.position } == expectedCursors.map({ $0.1 }))
+		#expect(state.cursors.map { $0.alignment } == expectedCursors.map({ $0.1 }))
 		#expect(state.textSystem.string == "aaaa\nbbbb\ncccc\n")
 	}
 }

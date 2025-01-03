@@ -139,15 +139,6 @@ extension MultiCursorState {
 }
 
 extension MultiCursorState {
-	private func sortCursors() {
-		self.cursors.sort { a, b in
-			let aLower = processor.textSystem.positions(composing: a.textRange).0
-			let bLower = processor.textSystem.positions(composing: b.textRange).0
-
-			return processor.textSystem.compare(aLower, to: bLower) == .orderedAscending
-		}
-	}
-
 	private func location(for range: TextRange) -> CGFloat? {
 		textSystem.boundingRect(for: range)?.origin.x
 	}
@@ -155,25 +146,26 @@ extension MultiCursorState {
 	public func mutateCursors(with operation: CursorOperation<TextRange>) {
 		switch operation {
 		case var .resetToSingle(cursor):
-			var deleted = Set(cursors.map({ $0.id }))
-
-			deleted.remove(cursor.id)
-
 			cursor.alignment = location(for: cursor.textRange)
 
 			self.cursors = [cursor]
-
-			cursorsChanged(deleted, Set(), Set([cursor.id]))
-
 		case let .add(textRange):
 			let alignment = location(for: textRange)
 			let newCursor = Cursor(textRange, alignment: alignment)
 
-			// insertion would be more efficient
-			self.cursors.append(newCursor)
-			sortCursors()
+			var newCursors = cursors
 
-			cursorsChanged(Set([newCursor.id]), Set(), Set())
+			// inserting at the right spot would be more efficient
+			newCursors.append(newCursor)
+
+			newCursors.sort { a, b in
+				let aLower = processor.textSystem.positions(composing: a.textRange).0
+				let bLower = processor.textSystem.positions(composing: b.textRange).0
+
+				return processor.textSystem.compare(aLower, to: bLower) == .orderedAscending
+			}
+
+			self.cursors = newCursors
 		case .addAbove:
 			guard let cursor = cursors.first else { return }
 
@@ -191,9 +183,6 @@ extension MultiCursorState {
 			let newCursor = Cursor(textRange, alignment: alignment)
 
 			self.cursors.insert(newCursor, at: 0)
-
-			cursorsChanged(Set([newCursor.id]), Set(), Set())
-
 		case .addBelow:
 			guard let cursor = cursors.last else {
 				return
@@ -213,8 +202,6 @@ extension MultiCursorState {
 			let newCursor = Cursor(textRange, alignment: alignment)
 
 			self.cursors.append(newCursor)
-
-			cursorsChanged(Set([newCursor.id]), Set(), Set())
 		}
 	}
 }

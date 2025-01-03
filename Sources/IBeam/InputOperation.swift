@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 public enum InputOperation {
 	case deleteBackwards(TextGranularity)
@@ -14,6 +18,7 @@ public enum InputOperation {
 		Self.insertText(AttributedString(value))
 	}
 
+#if os(macOS)
 	public init?(selector: Selector) {
 		switch selector {
 		case #selector(NSResponder.moveLeft(_:)):
@@ -34,6 +39,7 @@ public enum InputOperation {
 			return nil
 		}
 	}
+#endif
 
 	public var affectsAlignment: Bool {
 		switch self {

@@ -1,6 +1,10 @@
 import Foundation
 
+#if os(macOS)
 import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 /// Implements a large portion of the TextSystem protocol for NSMutableAttributedString-compatible backing stores.
 public struct MutableStringPartialSystem {

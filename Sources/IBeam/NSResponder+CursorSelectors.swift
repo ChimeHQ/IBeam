@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 
 extension NSResponder {
@@ -85,3 +86,4 @@ extension NSResponder {
 		#selector(uppercaseWord(_:)),
 	]
 }
+#endif

@@ -1,6 +1,10 @@
 import Foundation
 
+#if os(macOS)
 import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 /// Useful for testing components that rely on the `TextSystem` protocol.
 public final class MockTextSystem : TextSystem {

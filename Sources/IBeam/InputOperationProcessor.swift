@@ -62,7 +62,7 @@ struct InputOperationProcessor<System: TextSystem> {
 		let positions = textSystem.positions(composing: textRange)
 
 		if textSystem.compare(positions.0, to: positions.1) != .orderedSame {
-			let pos = textSystem.layoutDirection(at: positions.0) == .leftToRight ? positions.0 : positions.1
+			let pos = layoutDirection(at: positions.0) == .leftToRight ? positions.0 : positions.1
 
 			return textSystem.textRange(from: pos, to: pos)
 				.map { Output(selection: $0, delta: 0) }
@@ -89,7 +89,7 @@ struct InputOperationProcessor<System: TextSystem> {
 
 	private func moveToRightEndOfLine(textRange: TextRange) -> Output? {
 		let positions = textSystem.positions(composing: textRange)
-		let pos = textSystem.layoutDirection(at: positions.0) == .leftToRight ? positions.0 : positions.1
+		let pos = layoutDirection(at: positions.0) == .leftToRight ? positions.0 : positions.1
 
 		guard
 			let newPos = textSystem.position(from: pos, moving: .right, by: .line),
@@ -103,7 +103,7 @@ struct InputOperationProcessor<System: TextSystem> {
 
 	private func moveToLeftEndOfLine(textRange: TextRange) -> Output? {
 		let positions = textSystem.positions(composing: textRange)
-		let pos = textSystem.layoutDirection(at: positions.0) == .leftToRight ? positions.0 : positions.1
+		let pos = layoutDirection(at: positions.0) == .leftToRight ? positions.0 : positions.1
 
 		guard
 			let newPos = textSystem.position(from: pos, moving: .left, by: .line),
@@ -117,7 +117,7 @@ struct InputOperationProcessor<System: TextSystem> {
 
 	private func moveUp(textRange: TextRange, alignment: CGFloat?) -> Output? {
 		let positions = textSystem.positions(composing: textRange)
-		let pos = textSystem.layoutDirection(at: positions.0) == .leftToRight ? positions.0 : positions.1
+		let pos = layoutDirection(at: positions.0) == .leftToRight ? positions.0 : positions.1
 
 		return textSystem.position(from: pos, moving: .up(alignment: alignment), by: .character)
 			.flatMap { textSystem.textRange(from: $0, to: $0) }
@@ -126,10 +126,16 @@ struct InputOperationProcessor<System: TextSystem> {
 
 	private func moveDown(textRange: TextRange, alignment: CGFloat?) -> Output? {
 		let positions = textSystem.positions(composing: textRange)
-		let pos = textSystem.layoutDirection(at: positions.0) == .leftToRight ? positions.0 : positions.1
+		let pos = layoutDirection(at: positions.0) == .leftToRight ? positions.0 : positions.1
 
 		return textSystem.position(from: pos, moving: .down(alignment: alignment), by: .character)
 			.flatMap { textSystem.textRange(from: $0, to: $0) }
 			.map { Output(selection: $0, delta: 0) }
+	}
+}
+
+extension InputOperationProcessor {
+	private func layoutDirection(at position: System.TextPosition) -> TextLayoutDirection {
+		textSystem.layoutDirection(at: position) ?? .leftToRight
 	}
 }

@@ -31,7 +31,7 @@ public enum CursorOperation<TextRange> {
 	}
 }
 
-public final class MultiCursorState<System: TextSystem> {
+public final class MultiCursorState<System: TextSystemInterface> {
 	public typealias TextRange = System.TextRange
 
 	typealias Processor = InputOperationProcessor<System>

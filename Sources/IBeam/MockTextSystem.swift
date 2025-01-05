@@ -7,7 +7,7 @@ import UIKit
 #endif
 
 /// Useful for testing components that rely on the `TextSystem` protocol.
-public final class MockTextSystem : TextSystem {
+public final class MockTextSystem : TextSystemInterface {
 	public typealias TextRange = NSRange
 	public typealias TextPosition = Int
 

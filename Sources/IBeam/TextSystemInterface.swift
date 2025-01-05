@@ -30,7 +30,7 @@ public struct MutationOutput<TextRange> {
 	}
 }
 
-public protocol TextSystem<TextRange, TextPosition> {
+public protocol TextSystemInterface<TextRange, TextPosition> {
 	associatedtype TextRange
 	associatedtype TextPosition
 
@@ -55,7 +55,7 @@ public protocol TextSystem<TextRange, TextPosition> {
 	func applyMutation(_ range: TextRange, string: AttributedString) -> MutationOutput<TextRange>?
 }
 
-extension TextSystem {
+extension TextSystemInterface {
 	public var fullDocumentRange: TextRange {
 		guard let range = textRange(from: beginningOfDocument, to: endOfDocument) else {
 			fatalError("a system must be able to compute fullDocumentRange")
@@ -114,7 +114,7 @@ extension TextSystem {
 	}
 }
 
-extension TextSystem {
+extension TextSystemInterface {
 	/// Creates an initial cursor that represents an empty selection of `beginningOfDocument`.
 	public func initialCursor() -> Cursor<TextRange>? {
 		guard let range = textRange(from: beginningOfDocument, to: beginningOfDocument) else {

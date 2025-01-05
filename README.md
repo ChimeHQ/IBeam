@@ -31,7 +31,7 @@ dependencies: [
 
 The `MultiCursorState` type accepts two kinds of events to manage cursor states: `InputOperation` and `CursorOperation`.
 
-The `InputOperation` type models the use actions that affect selection and text state. This closely mirrors selectors within `NSResponder`. The `CursorOperation` type models actions that affect the number active cursors. The client of a `MultiCursorState` instance feeds in these two types of operations, and the state manages querying and relaying mutations to its `TextSystem` instance to execute those operations.
+The `InputOperation` type models the use actions that affect selection and text state. This closely mirrors selectors within `NSResponder`. The `CursorOperation` type models actions that affect the number active cursors. The client of a `MultiCursorState` instance feeds in these two types of operations, and the state manages querying and relaying mutations to its `TextSystemInterface` instance to execute those operations.
 
 To support large numbers of cursors, `MultiCursorState` plays tricks. In particular, it may delay, combine, or otherwise reorder operations if can do so in a way that does not impact visible user state. These can be essential for performance, but you can always force a fully up-to-date system with the `ensureOperationsProcessed` methods.
 
@@ -49,7 +49,7 @@ This is a fair bit of work, but it is not included in this library for three rea
 - Ligature and Glyph may only make sense if you are using a pure NS/UITextView implementation
 - A custom view subclass likely means you'll need to do customization on your own anyways
 
-If you need or want to implement a custom system, take a look at the `TextSystem` protocol. It offers a lot of flexibility, particularly around how your system applies text mutations.
+If you need or want to implement a custom system, take a look at the `TextSystemInterface` protocol. It offers a lot of flexibility, particularly around how your system applies text mutations.
 
 If you are on macOS 14.0 or greater, you can use the `TextViewIndicatorState` type to manage cursor views.
 
@@ -161,7 +161,7 @@ extension MultiCursorTextView {
 }
 ```
 
-Of course, you can also just customize everything. This is required if you want to use a custom TextSystem implementation or just exert more control over how the view interacts with its cursors.
+Of course, you can also just customize everything. This is required if you want to use a custom `TextSystemInterface` implementation or just exert more control over how the view interacts with its cursors.
 
 ## Contributing and Collaboration
 

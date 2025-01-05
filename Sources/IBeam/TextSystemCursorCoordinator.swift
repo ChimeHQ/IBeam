@@ -3,7 +3,7 @@ import AppKit
 
 @available(macOS 14.0, *)
 @MainActor
-public final class TextSystemCursorCoordinator<System: TextSystem> where System.TextRange == NSRange {
+public final class TextSystemCursorCoordinator<System: TextSystemInterface> where System.TextRange == NSRange {
 	public typealias CursorState = MultiCursorState<System>
 
 	private weak var textView: NSTextView?

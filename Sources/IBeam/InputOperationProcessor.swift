@@ -1,6 +1,6 @@
 import Foundation
 
-struct InputOperationProcessor<System: TextSystem> {
+struct InputOperationProcessor<System: TextSystemInterface> {
 	typealias CursorState = MultiCursorState<System>
 	typealias TextRange = System.TextRange
 	typealias Output = MutationOutput<TextRange>

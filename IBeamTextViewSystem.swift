@@ -29,7 +29,7 @@ public struct IBeamTextViewSystem {
 	}
 }
 
-extension IBeamTextViewSystem : @preconcurrency IBeam.TextSystem {
+extension IBeamTextViewSystem : @preconcurrency IBeam.TextSystemInterface {
 	public typealias TextRange = NSRange
 	public typealias TextPosition = Int
 
@@ -86,6 +86,6 @@ extension IBeamTextViewSystem : @preconcurrency IBeam.TextSystem {
 	public func endEditing() { partialSystem.endEditing() }
 
 	public func applyMutation(_ range: TextRange, string: AttributedString) -> MutationOutput<TextRange>? {
-		partialSystem.applyMutation(range, string: string)
+		partialSystem.applyMutation(range, string: string, undoManager: nil)
 	}
 }

@@ -126,3 +126,31 @@ extension TextSystemInterface {
 		return Cursor<TextRange>(range, alignment: alignment)
 	}
 }
+
+extension TextSystemInterface where Self: AnyObject, TextRange: Sendable {
+	public func registerMutationUndo(
+		with undoManager: UndoManager?,
+		range: TextRange,
+		substringProvider: (TextRange) -> (AttributedString, Int)?
+	) {
+		guard
+			let undoManager,
+			let (existing, length) = substringProvider(range)
+		else {
+			return
+		}
+
+		let start = positions(composing: range).0
+
+		guard
+			let end = position(from: start, offset: length),
+			let inverseRange = textRange(from: start, to: end)
+		else {
+			return
+		}
+
+		undoManager.registerUndo(withTarget: self, handler: { target in
+			_ = target.applyMutation(inverseRange, string: existing)
+		})
+	}
+}

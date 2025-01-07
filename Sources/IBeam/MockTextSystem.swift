@@ -16,11 +16,11 @@ public final class MockTextSystem : TextSystemInterface {
 		case boundingRect(CGRect?)
 	}
 
-	private var partialSystem: MutableStringPartialSystem
+	private var partialSystem: MutableStringPartialInterface
 	public var responses: [Response] = []
 
 	public init(_ string: NSAttributedString) {
-		self.partialSystem = MutableStringPartialSystem(NSMutableAttributedString(attributedString: string))
+		self.partialSystem = MutableStringPartialInterface(NSMutableAttributedString(attributedString: string))
 	}
 
 	public convenience init(_ string: String) {
@@ -94,6 +94,6 @@ public final class MockTextSystem : TextSystemInterface {
 	}
 
 	public func applyMutation(_ range: TextRange, string: AttributedString) -> MutationOutput<TextRange>? {
-		partialSystem.applyMutation(in: range, string: string, undoManager: nil)
+		partialSystem.applyMutation(range, string: string, undoManager: nil)
 	}
 }

@@ -6,10 +6,35 @@ import AppKit
 import UIKit
 #endif
 
-/// Implements a large portion of the TextSystem protocol for NSMutableAttributedString-compatible backing stores.
-public struct MutableStringPartialSystem {
-	private var content: NSMutableAttributedString
-	
+extension NSMutableAttributedString {
+	/// Compute and register the inverse mutation required to undo replacing the content within `range`.
+	public func registerMutationUndo(
+		with undoManager: UndoManager?,
+		range: NSRange,
+		delta: Int
+	) {
+		guard let undoManager else {
+			return
+		}
+
+		// while this is technically cheating, I believe it to be safe
+		nonisolated(unsafe) let existingString = attributedSubstring(from: range)
+		let newLength = existingString.length + max(delta, 0)
+
+		precondition(newLength > 0)
+
+		let inverseRange = NSRange(location: range.location, length: newLength)
+
+		undoManager.registerUndo(withTarget: self, handler: { target in
+			target.replaceCharacters(in: inverseRange, with: existingString)
+		})
+	}
+}
+
+/// Implements a large portion of the T`extSystemInterface` protocol for `NSMutableAttributedString`-compatible backing stores.
+public struct MutableStringPartialInterface {
+	private let content: NSMutableAttributedString
+
 	public init(_ content: NSMutableAttributedString) {
 		self.content = content
 	}
@@ -23,7 +48,7 @@ public struct MutableStringPartialSystem {
 	}
 }
 
-extension MutableStringPartialSystem {
+extension MutableStringPartialInterface {
 	public func position(from start: Int, offset: Int) -> Int? {
 		start + offset
 	}
@@ -86,22 +111,12 @@ extension MutableStringPartialSystem {
 		content.endEditing()
 	}
 
-	public func applyMutation(in range: NSRange, string: AttributedString, undoManager: UndoManager?) -> MutationOutput<NSRange> {
-		let nsAttrString = NSAttributedString(string)
-		let length = nsAttrString.length
+	public func applyMutation(_ range: NSRange, string: NSAttributedString, undoManager: UndoManager?) -> MutationOutput<NSRange>? {
+		let length = string.length
 
-		if let undoManager {
-			let existingString = AttributedString(content.attributedSubstring(from: range))
-			let inverseRange = NSRange(location: range.location, length: length)
+		content.registerMutationUndo(with: undoManager, range: range, delta: length - range.length)
 
-			undoManager.registerUndo(withTarget: content, handler: { target in
-				let existingNSAttrString = NSAttributedString(existingString)
-
-				target.replaceCharacters(in: inverseRange, with: existingNSAttrString)
-			})
-		}
-
-		content.replaceCharacters(in: range, with: nsAttrString)
+		content.replaceCharacters(in: range, with: string)
 
 		let delta = length - range.length
 		let position = min(range.lowerBound + length, content.length)
@@ -109,5 +124,11 @@ extension MutableStringPartialSystem {
 		let newSelection = NSRange(position..<position)
 
 		return MutationOutput<NSRange>(selection: newSelection, delta: delta)
+	}
+
+	public func applyMutation(_ range: NSRange, string: AttributedString, undoManager: UndoManager?) -> MutationOutput<NSRange>? {
+		let nsAttrString = NSAttributedString(string)
+
+		return applyMutation(range, string: nsAttrString, undoManager: undoManager)
 	}
 }

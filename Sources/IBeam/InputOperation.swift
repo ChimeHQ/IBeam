@@ -11,11 +11,25 @@ public enum InputOperation {
 	case moveUp
 	case moveDown
 	case insertText(AttributedString)
+	case insertTextArray([AttributedString])
 	case moveToLeftEndOfLine
 	case moveToRightEndOfLine
 
 	public static func insertText(_ value: String) -> InputOperation {
 		Self.insertText(AttributedString(value))
+	}
+
+	public static func insertTextArray(_ value: [String]) -> InputOperation {
+		Self.insertTextArray(value.map { AttributedString($0) })
+	}
+
+	func indexedOperation(for cursorIndex: Int) -> InputOperation {
+		switch self {
+		case let .insertTextArray(array):
+			.insertText(array[cursorIndex])
+		default:
+			self
+		}
 	}
 
 #if os(macOS)

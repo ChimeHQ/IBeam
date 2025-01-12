@@ -34,6 +34,8 @@ struct InputOperationProcessor<System: TextSystemInterface> {
 			return moveToRightEndOfLine(textRange: textRange)
 		case .moveToLeftEndOfLine:
 			return moveToLeftEndOfLine(textRange: textRange)
+		case .insertTextArray:
+			fatalError("This operation cannot be processed on a per-cursor basis")
 		}
 	}
 

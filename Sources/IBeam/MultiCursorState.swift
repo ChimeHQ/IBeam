@@ -1,5 +1,9 @@
 import Foundation
 
+public enum CursorOperationError: Error {
+	case insertArrayCountMismatch
+}
+
 public enum CursorOperation<TextRange> {
 	case resetToSingle(Cursor<TextRange>)
 	case add(TextRange)
@@ -73,25 +77,30 @@ public final class MultiCursorState<System: TextSystemInterface> {
 }
 
 extension MultiCursorState {
-	public func apply(_ operation: InputOperation) {
+	public func apply(_ operation: InputOperation) throws {
 		let priorityRange = processor.fullRange
 
-		apply(operation, prioritizing: priorityRange)
+		try apply(operation, prioritizing: priorityRange)
 	}
 
-	public func apply(_ operation: InputOperation, prioritizing priorityRange: TextRange) {
-		// for now, we're going to ignore the valid window
+	public func apply(_ operation: InputOperation, prioritizing priorityRange: TextRange) throws {
+		// check bounds for an array-based insert
+		if case .insertTextArray(let array) = operation {
+			if array.count != cursors.count {
+				throw CursorOperationError.insertArrayCountMismatch
+			}
+		}
 
 		var deltaSum = 0
-
 		var deletedIndexes: [Int] = []
-
 		var newCusors = cursors
 
 		for index in newCusors.indices {
 			var cursor = newCusors[index]
 
-			guard let output = processor.apply(operation, to: cursor, delta: deltaSum) else {
+			let perCursorOp = operation.indexedOperation(for: index)
+
+			guard let output = processor.apply(perCursorOp, to: cursor, delta: deltaSum) else {
 				deletedIndexes.append(index)
 				continue
 			}

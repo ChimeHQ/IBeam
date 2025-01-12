@@ -49,6 +49,13 @@ public final class TextSystemCursorCoordinator<System: TextSystemInterface> wher
 		cursorState.mutateCursors(with: .resetToSingle(viewCursor))
 	}
 
+	private func withSelectionMutation(_ block: () throws -> Void) rethrows {
+		mutatingSelection = true
+		defer { mutatingSelection = false }
+
+		try block()
+	}
+
 	private func cursorsUpdated(added: Set<UUID>, deleted: Set<UUID>, changed: Set<UUID>) {
 		for id in deleted {
 			indicatorState.removeIndicator(with: id)
@@ -59,30 +66,28 @@ public final class TextSystemCursorCoordinator<System: TextSystemInterface> wher
 		// this is inefficient
 		let existingCursors = cursorState.cursors.filter({ existing.contains($0.id) })
 
-		mutatingSelection = true
+		withSelectionMutation {
+			// I'm not 100% sure, yet, if/how to choose this correctly in all cases.
+			let affinity = NSSelectionAffinity.downstream
 
-		// I'm not 100% sure, yet, if/how to choose this correctly in all cases.
-		let affinity = NSSelectionAffinity.downstream
-
-		for cursor in existingCursors {
-			indicatorState.updateIndictor(with: cursor.textRange, affinity: affinity, for: cursor.id)
+			for cursor in existingCursors {
+				indicatorState.updateIndictor(with: cursor.textRange, affinity: affinity, for: cursor.id)
+			}
 		}
-
-		mutatingSelection = false
 	}
 
-	public func processOperation(_ operation: InputOperation) -> Bool {
-		mutatingSelection = true
-		cursorState.apply(operation)
-		mutatingSelection = false
-
-		// if we have removed all cursors, process a selection change to
-		// restore our state
-		if cursorState.cursors.isEmpty {
-			selectionChanged()
+	public func processOperation(_ operation: InputOperation) throws {
+		defer {
+			// if we have removed all cursors, process a selection change to
+			// restore our state
+			if cursorState.cursors.isEmpty {
+				selectionChanged()
+			}
 		}
 
-		return true
+		try withSelectionMutation {
+			try cursorState.apply(operation)
+		}
 	}
 
 	public func mutateCursors(with operation: CursorOperation<NSRange>) {

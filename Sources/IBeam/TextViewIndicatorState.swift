@@ -69,6 +69,8 @@ public final class TextViewIndicatorState {
 
 		let indicator = NSTextInsertionIndicator(frame: rect)
 
+		indicator.color = textView.insertionPointColor
+
 		indicators[id] = indicator
 
 		textView.addSubview(indicator)

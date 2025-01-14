@@ -51,7 +51,8 @@ public final class MockTextSystem : TextSystemInterface {
 		case let .position(value):
 			return value
 		default:
-			fatalError("wrong return type")
+			print("wrong return type")
+			return nil
 		}
 	}
 

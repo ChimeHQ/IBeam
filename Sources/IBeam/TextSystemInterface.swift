@@ -1,6 +1,6 @@
 import Foundation
 
-public enum TextDirection {
+public enum TextDirection: Sendable, Hashable {
 	case left
 	case right
 	case up(alignment: CGFloat?)
@@ -9,26 +9,37 @@ public enum TextDirection {
 	case backward
 }
 
-public enum TextGranularity {
+public enum TextGranularity: Sendable, Hashable {
 	case character
 	case word
 	case line
 }
 
-public enum TextLayoutDirection {
+public enum TextLayoutDirection: Sendable, Hashable {
 	case leftToRight
 	case rightToLeft
 }
 
+public enum SelectionAffinity: Sendable, Hashable {
+	case downstream
+	case upstream
+}
+
 public struct MutationOutput<TextRange> {
 	public let selection: TextRange
+	public let affinity: SelectionAffinity?
 	public let delta: Int
 
-	public init(selection: TextRange, delta: Int) {
+	public init(selection: TextRange, delta: Int, affinity: SelectionAffinity? = nil) {
 		self.selection = selection
 		self.delta = delta
+		self.affinity = affinity
 	}
 }
+
+extension MutationOutput: Equatable where TextRange: Equatable {}
+extension MutationOutput: Hashable where TextRange: Hashable {}
+extension MutationOutput: Sendable where TextRange: Sendable {}
 
 public protocol TextSystemInterface<TextRange, TextPosition> {
 	associatedtype TextRange
@@ -123,7 +134,7 @@ extension TextSystemInterface {
 
 		let alignment = boundingRect(for: range)?.origin.x
 
-		return Cursor<TextRange>(range, alignment: alignment)
+		return Cursor<TextRange>(range, alignment: alignment, affinity: nil)
 	}
 }
 

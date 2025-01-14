@@ -1,8 +1,52 @@
 import Foundation
 
+// Is this helpful? I *think* so...
+struct InterfaceRange<Interface: TextSystemInterface> {
+	enum BoundSelector {
+		case upstream
+		case downstream
+		case left
+		case right
+	}
+
+	let lowerBound: Interface.TextPosition
+	let upperBound: Interface.TextPosition
+	let interface: Interface
+
+	init(_ textRange: Interface.TextRange, interface: Interface) {
+		self.interface = interface
+
+		(self.lowerBound, self.upperBound) = interface.positions(composing: textRange)
+	}
+
+	var textRange: Interface.TextRange? {
+		interface.textRange(from: lowerBound, to: upperBound)
+	}
+
+	var isEmpty: Bool {
+		interface.compare(lowerBound, to: upperBound) == .orderedSame
+	}
+
+	func bound(for direction: TextDirection) -> Interface.TextPosition? {
+		return switch direction {
+		case .backward:
+			lowerBound
+		case .forward:
+			upperBound
+		case .left:
+			interface.layoutDirection(at: lowerBound) == .rightToLeft ? upperBound : lowerBound
+		case .right:
+			interface.layoutDirection(at: lowerBound) == .rightToLeft ? lowerBound : upperBound
+		case .down, .up:
+			nil
+		}
+	}
+}
+
 struct InputOperationProcessor<System: TextSystemInterface> {
 	typealias CursorState = MultiCursorState<System>
 	typealias TextRange = System.TextRange
+	typealias TextPosition = System.TextPosition
 	typealias Output = MutationOutput<TextRange>
 
 	let textSystem: System
@@ -17,15 +61,27 @@ struct InputOperationProcessor<System: TextSystemInterface> {
 			return nil
 		}
 
+		let affinity = cursor.affinity
+
 		switch operation {
 		case let .insertText(value):
 			return textSystem.applyMutation(textRange, string: value)
 		case let .deleteBackwards(value):
 			return deleteBackwards(granularity: value, textRange: textRange)
-		case let .moveLeft(granularity):
-			return moveLeft(granularity: granularity, textRange: textRange)
-		case let .moveRight(granularity):
-			return moveRight(granularity: granularity, textRange: textRange)
+		case let .moveLeft(granularity, selecting):
+			return moveLeft(
+				granularity: granularity,
+				selecting: selecting,
+				affinity: affinity,
+				textRange: textRange
+			)
+		case let .moveRight(granularity, selecting):
+			return moveRight(
+				granularity: granularity,
+				selecting: selecting,
+				affinity: affinity,
+				textRange: textRange
+			)
 		case .moveUp:
 			return moveUp(textRange: textRange, alignment: cursor.alignment)
 		case .moveDown:
@@ -59,34 +115,154 @@ struct InputOperationProcessor<System: TextSystemInterface> {
 
 	private func moveLeft(
 		granularity: TextGranularity,
+		selecting: Bool,
+		affinity: SelectionAffinity?,
 		textRange: TextRange
 	) -> Output? {
-		let positions = textSystem.positions(composing: textRange)
+		let range = InterfaceRange(textRange, interface: textSystem)
 
-		if textSystem.compare(positions.0, to: positions.1) != .orderedSame {
-			let pos = layoutDirection(at: positions.0) == .leftToRight ? positions.0 : positions.1
+		switch (affinity, selecting) {
+		case (_, false):
+			// if the range is empty, we can just shift either bound and be done
+			if range.isEmpty {
+				guard let pos = textSystem.position(from: range.lowerBound, moving: .left, by: granularity) else {
+					return nil
+				}
 
-			return textSystem.textRange(from: pos, to: pos)
+				return textSystem
+					.textRange(from: pos, to: pos)
+					.map { Output(selection: $0, delta: 0) }
+			}
+
+			// non-empty, so we have to choose one edge and make tha the new selection
+			guard let pos = range.bound(for: .left) else {
+				return nil
+			}
+
+			return textSystem
+				.textRange(from: pos, to: pos)
 				.map { Output(selection: $0, delta: 0) }
-		}
+		case (nil, true):
+			let rtl = textSystem.layoutDirection(at: range.lowerBound) == .rightToLeft
 
-		guard let pos = textSystem.position(from: positions.0, moving: .left, by: .character) else {
-			return nil
-		}
+			let leftmost = rtl ? range.upperBound : range.lowerBound
 
-		return textSystem.textRange(from: pos, to: pos)
-			.map { Output(selection: $0, delta: 0) }
+			guard let pos = textSystem.position(from: leftmost, moving: .left, by: granularity) else {
+				return nil
+			}
+
+			// we now need to re-create a range, but have to first figure out which position is which
+			let start = rtl ? range.lowerBound : pos
+			let end = rtl ? pos : range.upperBound
+
+			return textSystem
+				.textRange(from: start, to: end)
+				.map { Output(selection: $0, delta: 0, affinity: rtl ? .upstream : .downstream) }
+		case (.upstream?, true):
+			guard let pos = textSystem.position(from: range.lowerBound, moving: .left, by: granularity) else {
+				return nil
+			}
+
+			if textSystem.compare(pos, to: range.upperBound) == .orderedAscending {
+				return textSystem
+					.textRange(from: pos, to: range.upperBound)
+					.map { Output(selection: $0, delta: 0, affinity: .upstream) }
+			}
+
+			return textSystem
+				.textRange(from: range.upperBound, to: pos)
+				.map { Output(selection: $0, delta: 0, affinity: .downstream) }
+		case (.downstream?, true):
+			guard let pos = textSystem.position(from: range.upperBound, moving: .left, by: granularity) else {
+				return nil
+			}
+
+			if textSystem.compare(range.lowerBound, to: pos) == .orderedAscending {
+				return textSystem
+					.textRange(from: range.lowerBound, to: pos)
+					.map { Output(selection: $0, delta: 0, affinity: .downstream) }
+			}
+
+			return textSystem
+				.textRange(from: pos, to: range.lowerBound)
+				.map { Output(selection: $0, delta: 0, affinity: .upstream) }
+		}
 	}
 
 	private func moveRight(
 		granularity: TextGranularity,
+		selecting: Bool,
+		affinity: SelectionAffinity?,
 		textRange: TextRange
 	) -> Output? {
-		guard let newRange = textSystem.textRange(from: textRange, moving: .right, by: granularity) else {
-			return nil
-		}
+		let range = InterfaceRange(textRange, interface: textSystem)
 
-		return Output(selection: newRange, delta: 0)
+		switch (affinity, selecting) {
+		case (_, false):
+			// if the range is empty, we can just shift either bound and be done
+			if range.isEmpty {
+				guard let pos = textSystem.position(from: range.lowerBound, moving: .right, by: granularity) else {
+					return nil
+				}
+
+				return textSystem
+					.textRange(from: pos, to: pos)
+					.map { Output(selection: $0, delta: 0) }
+			}
+
+			// non-empty, so we have to choose one edge and make tha the new selection
+			guard let pos = range.bound(for: .right) else {
+				return nil
+			}
+
+			return textSystem
+				.textRange(from: pos, to: pos)
+				.map { Output(selection: $0, delta: 0) }
+		case (nil, true):
+			let rtl = textSystem.layoutDirection(at: range.lowerBound) == .rightToLeft
+
+			let rightmost = rtl ? range.lowerBound : range.upperBound
+
+			guard let pos = textSystem.position(from: rightmost, moving: .right, by: granularity) else {
+				return nil
+			}
+
+			// we now need to re-create a range, but have to first figure out which position is which
+			let start = rtl ? pos : range.lowerBound
+			let end = rtl ? range.upperBound : pos
+
+			return textSystem
+				.textRange(from: start, to: end)
+				.map { Output(selection: $0, delta: 0, affinity: rtl ? .upstream : .downstream) }
+		case (.upstream?, true):
+			guard let pos = textSystem.position(from: range.lowerBound, moving: .right, by: granularity) else {
+				return nil
+			}
+
+			if textSystem.compare(pos, to: range.upperBound) == .orderedAscending {
+				return textSystem
+					.textRange(from: pos, to: range.upperBound)
+					.map { Output(selection: $0, delta: 0, affinity: .upstream) }
+			}
+
+			return textSystem
+				.textRange(from: range.upperBound, to: pos)
+				.map { Output(selection: $0, delta: 0, affinity: .downstream) }
+		case (.downstream?, true):
+			guard let pos = textSystem.position(from: range.upperBound, moving: .right, by: granularity) else {
+				return nil
+			}
+
+			if textSystem.compare(range.lowerBound, to: pos) == .orderedAscending {
+				return textSystem
+					.textRange(from: range.lowerBound, to: pos)
+					.map { Output(selection: $0, delta: 0, affinity: .downstream) }
+			}
+
+			return textSystem
+				.textRange(from: pos, to: range.lowerBound)
+				.map { Output(selection: $0, delta: 0, affinity: .upstream) }
+		}
 	}
 
 	private func moveToRightEndOfLine(textRange: TextRange) -> Output? {

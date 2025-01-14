@@ -6,14 +6,14 @@ import UIKit
 
 public enum InputOperation {
 	case deleteBackwards(TextGranularity)
-	case moveLeft(TextGranularity)
-	case moveRight(TextGranularity)
+	case moveLeft(TextGranularity, selecting: Bool = false)
+	case moveRight(TextGranularity, selecting: Bool = false)
 	case moveUp
 	case moveDown
 	case insertText(AttributedString)
 	case insertTextArray([AttributedString])
-	case moveToLeftEndOfLine
-	case moveToRightEndOfLine
+	case moveToLeftEndOfLine(selecting: Bool = false)
+	case moveToRightEndOfLine(selecting: Bool = false)
 
 	public static func insertText(_ value: String) -> InputOperation {
 		Self.insertText(AttributedString(value))
@@ -37,8 +37,12 @@ public enum InputOperation {
 		switch selector {
 		case #selector(NSResponder.moveLeft(_:)):
 			self = .moveLeft(.character)
+		case #selector(NSResponder.moveLeftAndModifySelection(_:)):
+			self = .moveLeft(.character, selecting: true)
 		case #selector(NSResponder.moveRight(_:)):
 			self = .moveRight(.character)
+		case #selector(NSResponder.moveRightAndModifySelection(_:)):
+			self = .moveRight(.character, selecting: true)
 		case #selector(NSResponder.moveDown(_:)):
 			self = .moveDown
 		case #selector(NSResponder.moveUp(_:)):
@@ -46,9 +50,9 @@ public enum InputOperation {
 		case #selector(NSResponder.deleteBackward(_:)):
 			self = .deleteBackwards(.character)
 		case #selector(NSResponder.moveToLeftEndOfLine(_:)):
-			self = .moveToLeftEndOfLine
+			self = .moveToLeftEndOfLine(selecting: false)
 		case #selector(NSResponder.moveToRightEndOfLine(_:)):
-			self = .moveToRightEndOfLine
+			self = .moveToRightEndOfLine(selecting: false)
 		default:
 			return nil
 		}

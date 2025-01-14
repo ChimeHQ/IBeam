@@ -28,7 +28,12 @@ public enum CursorOperation<TextRange> {
 				return nil
 			}
 
-			let newCursor = Cursor<OtherRange>(id: cursor.id, textRange: otherRange, alignment: cursor.alignment)
+			let newCursor = Cursor<OtherRange>(
+				id: cursor.id,
+				textRange: otherRange,
+				alignment: cursor.alignment,
+				affinity: cursor.affinity
+			)
 
 			return .resetToSingle(newCursor)
 		}
@@ -119,6 +124,7 @@ extension MultiCursorState {
 			}
 
 			cursor.textRange = output.selection
+			cursor.affinity = output.affinity
 
 			if operation.affectsAlignment {
 				cursor.alignment = location(for: output.selection)
@@ -160,7 +166,7 @@ extension MultiCursorState {
 			self.cursors = [cursor]
 		case let .add(textRange):
 			let alignment = location(for: textRange)
-			let newCursor = Cursor(textRange, alignment: alignment)
+			let newCursor = Cursor(textRange, alignment: alignment, affinity: nil)
 
 			var newCursors = cursors
 
@@ -189,7 +195,7 @@ extension MultiCursorState {
 			}
 
 			let alignment = location(for: textRange)
-			let newCursor = Cursor(textRange, alignment: alignment)
+			let newCursor = Cursor(textRange, alignment: alignment, affinity: cursor.affinity)
 
 			self.cursors.insert(newCursor, at: 0)
 		case .addBelow:
@@ -208,7 +214,7 @@ extension MultiCursorState {
 			}
 
 			let alignment = location(for: textRange)
-			let newCursor = Cursor(textRange, alignment: alignment)
+			let newCursor = Cursor(textRange, alignment: alignment, affinity: cursor.affinity)
 
 			self.cursors.append(newCursor)
 		}

@@ -6,34 +6,37 @@ import AppKit
 import UIKit
 #endif
 
-extension NSMutableAttributedString {
-	/// Compute and register the inverse mutation required to undo replacing the content within `range`.
-	public func registerMutationUndo(
-		with undoManager: UndoManager?,
-		range: NSRange,
-		delta: Int
-	) {
-		guard let undoManager else {
-			return
-		}
+import Rearrange
 
-		// while this is technically cheating, I believe it to be safe
-		nonisolated(unsafe) let existingString = attributedSubstring(from: range)
-		let newLength = existingString.length + max(delta, 0)
-
-		precondition(newLength > 0)
-
-		let inverseRange = NSRange(location: range.location, length: newLength)
-
-		undoManager.registerUndo(withTarget: self, handler: { target in
-			target.replaceCharacters(in: inverseRange, with: existingString)
-		})
-	}
-}
+//extension NSMutableAttributedString {
+//	/// Compute and register the inverse mutation required to undo replacing the content within `range`.
+//	public func registerMutationUndo(
+//		with undoManager: UndoManager?,
+//		range: NSRange,
+//		delta: Int
+//	) {
+//		guard let undoManager else {
+//			return
+//		}
+//
+//		// while this is technically cheating, I believe it to be safe
+//		nonisolated(unsafe) let existingString = attributedSubstring(from: range)
+//		let newLength = existingString.length + max(delta, 0)
+//
+//		precondition(newLength > 0)
+//
+//		let inverseRange = NSRange(location: range.location, length: newLength)
+//
+//		undoManager.registerUndo(withTarget: self, handler: { target in
+//			target.replaceCharacters(in: inverseRange, with: existingString)
+//		})
+//	}
+//}
 
 /// Implements a large portion of the T`extSystemInterface` protocol for `NSMutableAttributedString`-compatible backing stores.
-public struct MutableStringPartialInterface {
+public final class MutableStringPartialInterface {
 	private let content: NSMutableAttributedString
+	public var willApplyMutation: ((TextRange, NSAttributedString) -> Void)?
 
 	public init(_ content: NSMutableAttributedString) {
 		self.content = content
@@ -48,11 +51,23 @@ public struct MutableStringPartialInterface {
 	}
 }
 
-extension MutableStringPartialInterface {
-	public func position(from start: Int, offset: Int) -> Int? {
-		start + offset
+extension MutableStringPartialInterface : TextRangeCalculating {
+	public typealias TextRange = NSRange
+
+	public var beginningOfDocument: Int {
+		0
 	}
 
+	public var endOfDocument: Int {
+		content.length
+	}
+
+	public func textRange(from start: Position, to end: Position) -> NSRange? {
+		NSRange(start..<end)
+	}
+}
+
+extension MutableStringPartialInterface {
 	public func layoutDirection(at position: Int) -> TextLayoutDirection? {
 		if position >= content.length {
 			return nil
@@ -73,35 +88,6 @@ extension MutableStringPartialInterface {
 		}
 	}
 
-	// range calculation
-	public var beginningOfDocument: Int {
-		return 0
-	}
-
-	public var endOfDocument: Int {
-		return content.length
-	}
-
-	public func compare(_ position: Int, to other: Int) -> ComparisonResult {
-		if position < other {
-			return .orderedAscending
-		}
-
-		if position > other {
-			return .orderedDescending
-		}
-
-		return .orderedSame
-	}
-
-	public func positions(composing range: NSRange) -> (Int, Int) {
-		(range.lowerBound, range.upperBound)
-	}
-
-	public func textRange(from start: Int, to end: Int) -> NSRange? {
-		NSRange(start..<end)
-	}
-
 	// content mutation
 	public func beginEditing() {
 		content.beginEditing()
@@ -112,13 +98,28 @@ extension MutableStringPartialInterface {
 	}
 
 	public func applyMutation(_ range: NSRange, string: NSAttributedString, undoManager: UndoManager?) -> MutationOutput<NSRange>? {
-		let length = string.length
+		let plainString = string.string
+		let length = plainString.utf16.count
+		let delta = length - range.length
 
-		content.registerMutationUndo(with: undoManager, range: range, delta: length - range.length)
+		willApplyMutation?(range, string)
+
+		if let undoManager {
+			nonisolated(unsafe) let existingString = content.attributedSubstring(from: range)
+			nonisolated(unsafe) let capturedUndoManager = undoManager
+
+			let inverseRange = NSRange(
+				location: range.location,
+				length: range.length + delta
+			)
+
+			undoManager.registerUndo(withTarget: self) { target in
+				_ = target.applyMutation(inverseRange, string: existingString, undoManager: capturedUndoManager)
+			}
+		}
 
 		content.replaceCharacters(in: range, with: string)
 
-		let delta = length - range.length
 		let position = min(range.lowerBound + length, content.length)
 
 		let newSelection = NSRange(position..<position)

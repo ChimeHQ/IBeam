@@ -23,7 +23,7 @@ final class MultiCursorStateTests {
 	typealias CursorState = MultiCursorState<MockTextSystem>
 
 	@Test
-	func newInsertOperation() throws {
+	func insert() throws {
 		let state = MultiCursorState(
 			string: "aaaa\nbbbb\ncccc\n",
 			textRanges: [
@@ -45,7 +45,7 @@ final class MultiCursorStateTests {
 	}
 
 	@Test
-	func newDeleteBackwardsByCharacterOperation() throws {
+	func deleteBackwardsByCharacter() throws {
 		let state = MultiCursorState(
 			string: "aaaa\nbbbb\ncccc\n",
 			textRanges: [
@@ -56,12 +56,12 @@ final class MultiCursorStateTests {
 		)
 
 		state.textSystem.responses = [
+			.position(9),
 			.boundingRect(nil),
 
-			.position(5),
+			.position(7),
 			.boundingRect(nil),
 
-			.position(6),
 			.boundingRect(nil),
 		]
 
@@ -77,7 +77,7 @@ final class MultiCursorStateTests {
 	}
 
 	@Test
-	func newMoveLeftByCharacterOperation() throws {
+	func moveLeftByCharacter() throws {
 		let state = MultiCursorState(
 			string: "aaaa\nbbbb\ncccc\n",
 			textRanges: [
@@ -88,10 +88,12 @@ final class MultiCursorStateTests {
 		)
 
 		state.textSystem.responses = [
+			.position(9),
 			.boundingRect(nil),
+
 			.position(7),
 			.boundingRect(nil),
-			.position(9),
+
 			.boundingRect(nil),
 		]
 
@@ -107,7 +109,7 @@ final class MultiCursorStateTests {
 	}
 
 	@Test
-	func newMoveLeftByCharacterSelectionOperation() throws {
+	func moveLeftByCharacterSelection() throws {
 		let state = MultiCursorState(
 			string: "aaaa\nbbbb\ncccc\n",
 			textRanges: [
@@ -119,13 +121,13 @@ final class MultiCursorStateTests {
 		)
 
 		state.textSystem.responses = [
-			.position(0),
-			.boundingRect(nil),
-			.position(7),
+			.position(12),
 			.boundingRect(nil),
 			.position(9),
 			.boundingRect(nil),
-			.position(12),
+			.position(7),
+			.boundingRect(nil),
+			.position(0),
 			.boundingRect(nil),
 		]
 
@@ -143,7 +145,7 @@ final class MultiCursorStateTests {
 	}
 
 	@Test
-	func newMoveRightByCharacterOperation() throws {
+	func moveRightByCharacterOperation() throws {
 		let state = MultiCursorState(
 			string: "aaaa\nbbbb\ncccc\n",
 			textRanges: [
@@ -154,10 +156,12 @@ final class MultiCursorStateTests {
 		)
 
 		state.textSystem.responses = [
+			.position(11),
 			.boundingRect(nil),
+
 			.position(9),
 			.boundingRect(nil),
-			.position(11),
+
 			.boundingRect(nil),
 		]
 
@@ -185,13 +189,13 @@ final class MultiCursorStateTests {
 		)
 
 		state.textSystem.responses = [
-			.position(4),
-			.boundingRect(nil),
-			.position(9),
+			.position(14),
 			.boundingRect(nil),
 			.position(11),
 			.boundingRect(nil),
-			.position(14),
+			.position(9),
+			.boundingRect(nil),
+			.position(4),
 			.boundingRect(nil),
 		]
 
@@ -209,7 +213,7 @@ final class MultiCursorStateTests {
 	}
 
 	@Test
-	func newMoveRightByCharacterSelectionOperationWithUpstreamAffinity() throws {
+	func moveRightByCharacterSelectionOperationWithUpstreamAffinity() throws {
 		let state = MultiCursorState(
 			string: "aaaa\nbbbb\ncccc\n",
 			textRanges: [
@@ -219,9 +223,9 @@ final class MultiCursorStateTests {
 		)
 
 		state.textSystem.responses = [
-			.position(2),
-			.boundingRect(nil),
 			.position(9),
+			.boundingRect(nil),
+			.position(2),
 			.boundingRect(nil),
 		]
 
@@ -236,7 +240,7 @@ final class MultiCursorStateTests {
 	}
 
 	@Test
-	func newMoveRightByCharacterSelectionOperationWithDownstreamAffinity() throws {
+	func moveRightByCharacterSelectionOperationWithDownstreamAffinity() throws {
 		let state = MultiCursorState(
 			string: "aaaa\nbbbb\ncccc\n",
 			textRanges: [
@@ -246,9 +250,9 @@ final class MultiCursorStateTests {
 		)
 
 		state.textSystem.responses = [
-			.position(4),
-			.boundingRect(nil),
 			.position(9),
+			.boundingRect(nil),
+			.position(4),
 			.boundingRect(nil),
 		]
 
@@ -263,7 +267,7 @@ final class MultiCursorStateTests {
 	}
 
 	@Test
-	func newMoveDownByCharacterOperation() throws {
+	func moveDownByCharacterOperation() throws {
 		// This is more complex. Let's assume "a" is 2.0 wide, and all others are 1
 		let state = MultiCursorState(
 			string: "aaaa\nbbbb\ncccc\n",
@@ -280,6 +284,130 @@ final class MultiCursorStateTests {
 
 		let expectedCursors: [(NSRange, CGFloat)] = [
 			(NSRange(7..<7), 2.0),
+		]
+		#expect(state.cursors.map { $0.textRange } == expectedCursors.map({ $0.0 }))
+		#expect(state.cursors.map { $0.alignment } == expectedCursors.map({ $0.1 }))
+		#expect(state.textSystem.string == "aaaa\nbbbb\ncccc\n")
+	}
+}
+
+extension MultiCursorStateTests {
+	@Test
+	func undoAndRedoInsert() throws {
+		let undoManager = UndoManager()
+
+		var events = [String]()
+
+		// set random alignments/affinity just to validate they are restored
+		let originalCursors: [Cursor<CursorState.TextRange>] = [
+			Cursor(NSRange(1..<3), alignment: 1.0, affinity: .upstream),
+			Cursor(NSRange(8..<8), alignment: nil, affinity: .upstream),
+			Cursor(NSRange(10..<10), alignment: 1.0, affinity: nil),
+		]
+
+		let system = MockTextSystem("aaaa\nbbbb\ncccc\n")
+		let state = MultiCursorState(
+			cursors: originalCursors,
+			system: system
+		)
+
+		var mutationCount = 0
+
+		state.undoManagerProvider = { undoManager }
+		system.undoManagerProvider = { undoManager }
+		system.willApplyMutation = { _, _ in
+			events.append("m-\(mutationCount)")
+
+			mutationCount += 1
+		}
+
+		var changeCount = 0
+		state.cursorsChanged = { added, deleted, changed in
+			events.append("c-\(changeCount)")
+			changeCount += 1
+
+			#expect(added.isEmpty)
+			#expect(deleted.isEmpty)
+			#expect(changed == Set(originalCursors.map(\.id)))
+		}
+
+		try state.apply(.insertText("z"))
+
+		var expectedCursors = originalCursors
+		expectedCursors[0].textRange = NSRange(2..<2)
+		expectedCursors[0].affinity = nil
+		expectedCursors[0].alignment = nil
+		expectedCursors[1].textRange = NSRange(8..<8)
+		expectedCursors[1].affinity = nil
+		expectedCursors[2].textRange = NSRange(11..<11)
+		expectedCursors[2].alignment = nil
+
+		// this is really annoying, but is is *critical* we validate the ordering of events during undo and redo.
+		#expect(events == ["m-0", "m-1", "m-2", "c-0"])
+		#expect(state.cursors == expectedCursors)
+		#expect(state.textSystem.string == "aza\nbbbzb\nzcccc\n")
+
+		events.removeAll()
+		undoManager.undo()
+
+		#expect(events == ["m-3", "m-4", "m-5", "c-1"])
+		#expect(state.cursors == originalCursors)
+		#expect(state.textSystem.string == "aaaa\nbbbb\ncccc\n")
+
+		events.removeAll()
+		undoManager.redo()
+
+		#expect(events == ["m-6", "m-7", "m-8", "c-2"])
+		#expect(state.cursors == expectedCursors)
+		#expect(state.textSystem.string == "aza\nbbbzb\nzcccc\n")
+	}
+}
+
+extension MultiCursorStateTests {
+	@Test
+	func addCursorAbove() throws {
+		let state = MultiCursorState(
+			string: "aaaa\nbbbb\ncccc\n",
+			textRanges: [
+				(NSRange(6..<6), 5.0, nil),
+			]
+		)
+
+		state.textSystem.responses = [
+			.position(1),
+			.boundingRect(CGRect(x: 4.0, y: 0.0, width: 0.0, height: 0.0)),
+		]
+
+		state.mutateCursors(with: .addAbove)
+
+		let expectedCursors: [(NSRange, CGFloat)] = [
+			(NSRange(1..<1), 4.0),
+			(NSRange(6..<6), 5.0),
+		]
+		#expect(state.cursors.map { $0.textRange } == expectedCursors.map({ $0.0 }))
+		#expect(state.cursors.map { $0.alignment } == expectedCursors.map({ $0.1 }))
+		#expect(state.textSystem.string == "aaaa\nbbbb\ncccc\n")
+	}
+
+	@Test
+	func addCursorBelow() throws {
+		let state = MultiCursorState(
+			string: "aaaa\nbbbb\ncccc\n",
+			textRanges: [
+				(NSRange(6..<6), 5.0, nil),
+			]
+		)
+
+		state.textSystem.responses = [
+			.position(11),
+			.boundingRect(CGRect(x: 6.0, y: 10.0, width: 0.0, height: 0.0)),
+		]
+
+		state.mutateCursors(with: .addBelow)
+
+		let expectedCursors: [(NSRange, CGFloat)] = [
+			(NSRange(6..<6), 5.0),
+			(NSRange(11..<11), 6.0),
 		]
 		#expect(state.cursors.map { $0.textRange } == expectedCursors.map({ $0.0 }))
 		#expect(state.cursors.map { $0.alignment } == expectedCursors.map({ $0.1 }))

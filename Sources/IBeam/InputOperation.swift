@@ -67,4 +67,15 @@ public enum InputOperation {
 			return true
 		}
 	}
+
+	public var supportsUndo: Bool {
+		switch self {
+		case .deleteBackwards:
+			true
+		case .insertText, .insertTextArray:
+			true
+		default:
+			false
+		}
+	}
 }

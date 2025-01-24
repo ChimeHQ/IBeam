@@ -6,6 +6,8 @@ import AppKit
 import UIKit
 #endif
 
+import Rearrange
+
 /// Useful for testing components that rely on the `TextSystem` protocol.
 public final class MockTextSystem : TextSystemInterface {
 	public typealias TextRange = NSRange
@@ -18,6 +20,7 @@ public final class MockTextSystem : TextSystemInterface {
 
 	private var partialSystem: MutableStringPartialInterface
 	public var responses: [Response] = []
+	public var undoManagerProvider: (() -> UndoManager?)?
 
 	public init(_ string: NSAttributedString) {
 		self.partialSystem = MutableStringPartialInterface(NSMutableAttributedString(attributedString: string))
@@ -35,6 +38,11 @@ public final class MockTextSystem : TextSystemInterface {
 		partialSystem.string
 	}
 
+	public var willApplyMutation: ((TextRange, NSAttributedString) -> Void)? {
+		get { partialSystem.willApplyMutation }
+		set { partialSystem.willApplyMutation = newValue }
+	}
+	
 	public func boundingRect(for range: NSRange) -> CGRect? {
 		if case let .boundingRect(value) = responses.first {
 			responses.removeFirst()
@@ -54,6 +62,10 @@ public final class MockTextSystem : TextSystemInterface {
 			print("wrong return type")
 			return nil
 		}
+	}
+
+	public func offset(from: Position, to toPosition: Position) -> Int {
+		partialSystem.offset(from: from, to: toPosition)
 	}
 
 	public func position(from start: TextPosition, offset: Int) -> TextPosition? {
@@ -77,10 +89,6 @@ public final class MockTextSystem : TextSystemInterface {
 		partialSystem.compare(position, to: other)
 	}
 
-	public func positions(composing range: TextRange) -> (TextPosition, TextPosition) {
-		partialSystem.positions(composing: range)
-	}
-
 	public func textRange(from start: TextPosition, to end: TextPosition) -> TextRange? {
 		partialSystem.textRange(from: start, to: end)
 	}
@@ -95,6 +103,14 @@ public final class MockTextSystem : TextSystemInterface {
 	}
 
 	public func applyMutation(_ range: TextRange, string: AttributedString) -> MutationOutput<TextRange>? {
-		partialSystem.applyMutation(range, string: string, undoManager: nil)
+		let undoManager = undoManagerProvider?()
+
+		return partialSystem.applyMutation(range, string: string, undoManager: undoManager)
+	}
+}
+
+extension MockTextSystem : Equatable {
+	public static func == (lhs: MockTextSystem, rhs: MockTextSystem) -> Bool {
+		lhs === rhs
 	}
 }

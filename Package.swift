@@ -13,8 +13,11 @@ let package = Package(
 	products: [
 		.library(name: "IBeam", targets: ["IBeam"]),
 	],
+	dependencies: [
+		.package(url: "https://github.com/ChimeHQ/Rearrange", branch: "main"),
+	],
 	targets: [
-		.target(name: "IBeam"),
+		.target(name: "IBeam", dependencies: ["Rearrange"]),
 		.testTarget(name: "IBeamTests", dependencies: ["IBeam"]),
 	]
 )

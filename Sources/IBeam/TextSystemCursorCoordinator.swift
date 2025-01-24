@@ -1,6 +1,8 @@
 #if os(macOS)
 import AppKit
 
+import Rearrange
+
 @available(macOS 14.0, *)
 @MainActor
 public final class TextSystemCursorCoordinator<System: TextSystemInterface> where System.TextRange == NSRange {
@@ -37,10 +39,15 @@ public final class TextSystemCursorCoordinator<System: TextSystemInterface> wher
 		)
 
 		cursorState.cursorsChanged = { [weak self] in self?.cursorsUpdated(added: $0, deleted: $1, changed: $2) }
+		cursorState.undoManagerProvider = { [textView] in textView.undoManager }
 	}
 
 	private func selectionChanged() {
-		guard let textView, mutatingSelection == false else {
+		let undoManager = textView?.undoManager
+
+		let undoActive = undoManager?.isRedoing ?? false || undoManager?.isUndoing ?? false
+
+		guard let textView, mutatingSelection == false, undoActive == false else {
 			return
 		}
 
@@ -92,6 +99,11 @@ public final class TextSystemCursorCoordinator<System: TextSystemInterface> wher
 
 	public func mutateCursors(with operation: CursorOperation<NSRange>) {
 		cursorState.mutateCursors(with: operation)
+	}
+
+	public func didChangeText(in range: NSRange, delta: Int) {
+		// if this results in changes to the cursor locations, we'll get our callback
+		cursorState.didChangeText(in: range, delta: delta)
 	}
 }
 #endif

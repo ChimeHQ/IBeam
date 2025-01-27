@@ -56,6 +56,15 @@ public final class TextViewIndicatorState {
 			return
 		}
 
+		// only insertion points are visible
+		guard range.length == 0 else {
+			if indicators[id] != nil {
+				removeIndicator(with: id)
+			}
+
+			return
+		}
+
 		guard let rect = boundingRectProvider(range) else {
 			return
 		}

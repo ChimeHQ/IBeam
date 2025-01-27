@@ -80,6 +80,8 @@ public final class TextSystemCursorCoordinator<System: TextSystemInterface> wher
 			for cursor in existingCursors {
 				indicatorState.updateIndictor(with: cursor.textRange, affinity: affinity, for: cursor.id)
 			}
+
+			textView?.selectedRanges = cursorState.cursorSet.ranges.map { NSValue(range: $0) }
 		}
 	}
 

@@ -68,7 +68,7 @@ public enum InputOperation {
 		}
 	}
 
-	public var supportsUndo: Bool {
+	public var affectsContent: Bool {
 		switch self {
 		case .deleteBackwards:
 			true

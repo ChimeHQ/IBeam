@@ -56,12 +56,12 @@ final class MultiCursorStateTests {
 		)
 
 		state.textSystem.responses = [
-			.position(9),
 			.boundingRect(nil),
 
-			.position(7),
+			.position(8 - 2 - 1),
 			.boundingRect(nil),
 
+			.position(10 - 2 - 2),
 			.boundingRect(nil),
 		]
 
@@ -88,12 +88,12 @@ final class MultiCursorStateTests {
 		)
 
 		state.textSystem.responses = [
-			.position(9),
 			.boundingRect(nil),
 
 			.position(7),
 			.boundingRect(nil),
 
+			.position(9),
 			.boundingRect(nil),
 		]
 
@@ -121,13 +121,13 @@ final class MultiCursorStateTests {
 		)
 
 		state.textSystem.responses = [
-			.position(12),
-			.boundingRect(nil),
-			.position(9),
+			.position(0),
 			.boundingRect(nil),
 			.position(7),
 			.boundingRect(nil),
-			.position(0),
+			.position(9),
+			.boundingRect(nil),
+			.position(12),
 			.boundingRect(nil),
 		]
 
@@ -156,12 +156,12 @@ final class MultiCursorStateTests {
 		)
 
 		state.textSystem.responses = [
-			.position(11),
 			.boundingRect(nil),
 
 			.position(9),
 			.boundingRect(nil),
 
+			.position(11),
 			.boundingRect(nil),
 		]
 
@@ -189,13 +189,13 @@ final class MultiCursorStateTests {
 		)
 
 		state.textSystem.responses = [
-			.position(14),
-			.boundingRect(nil),
-			.position(11),
+			.position(4),
 			.boundingRect(nil),
 			.position(9),
 			.boundingRect(nil),
-			.position(4),
+			.position(11),
+			.boundingRect(nil),
+			.position(14),
 			.boundingRect(nil),
 		]
 
@@ -223,9 +223,9 @@ final class MultiCursorStateTests {
 		)
 
 		state.textSystem.responses = [
-			.position(9),
-			.boundingRect(nil),
 			.position(2),
+			.boundingRect(nil),
+			.position(9),
 			.boundingRect(nil),
 		]
 
@@ -250,9 +250,9 @@ final class MultiCursorStateTests {
 		)
 
 		state.textSystem.responses = [
-			.position(9),
-			.boundingRect(nil),
 			.position(4),
+			.boundingRect(nil),
+			.position(9),
 			.boundingRect(nil),
 		]
 
@@ -321,6 +321,9 @@ extension MultiCursorStateTests {
 			mutationCount += 1
 		}
 
+		system.willBeginEditing = { events.append("b") }
+		system.didEndEditing = { events.append("e") }
+
 		var changeCount = 0
 		state.cursorsChanged = { added, deleted, changed in
 			events.append("c-\(changeCount)")
@@ -343,21 +346,21 @@ extension MultiCursorStateTests {
 		expectedCursors[2].alignment = nil
 
 		// this is really annoying, but is is *critical* we validate the ordering of events during undo and redo.
-		#expect(events == ["m-0", "m-1", "m-2", "c-0"])
+		#expect(events == ["b", "m-0", "m-1", "m-2", "e", "c-0"])
 		#expect(state.cursors == expectedCursors)
 		#expect(state.textSystem.string == "aza\nbbbzb\nzcccc\n")
 
 		events.removeAll()
 		undoManager.undo()
 
-		#expect(events == ["m-3", "m-4", "m-5", "c-1"])
+		#expect(events == ["b", "m-3", "m-4", "m-5", "e", "c-1"])
 		#expect(state.cursors == originalCursors)
 		#expect(state.textSystem.string == "aaaa\nbbbb\ncccc\n")
 
 		events.removeAll()
 		undoManager.redo()
 
-		#expect(events == ["m-6", "m-7", "m-8", "c-2"])
+		#expect(events == ["b", "m-6", "m-7", "m-8", "e", "c-2"])
 		#expect(state.cursors == expectedCursors)
 		#expect(state.textSystem.string == "aza\nbbbzb\nzcccc\n")
 	}

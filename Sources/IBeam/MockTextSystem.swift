@@ -42,7 +42,17 @@ public final class MockTextSystem : TextSystemInterface {
 		get { partialSystem.willApplyMutation }
 		set { partialSystem.willApplyMutation = newValue }
 	}
-	
+
+	public var willBeginEditing: (() -> Void)? {
+		get { partialSystem.willBeginEditing }
+		set { partialSystem.willBeginEditing = newValue }
+	}
+
+	public var didEndEditing: (() -> Void)? {
+		get { partialSystem.didEndEditing }
+		set { partialSystem.didEndEditing = newValue }
+	}
+
 	public func boundingRect(for range: NSRange) -> CGRect? {
 		if case let .boundingRect(value) = responses.first {
 			responses.removeFirst()

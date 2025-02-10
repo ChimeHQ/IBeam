@@ -2,103 +2,26 @@ import Foundation
 
 import Rearrange
 
-extension UndoManager {
-	enum Direction {
-		case any
-		case undo
-		case redo
-
-		var reverse: Direction {
-			switch self {
-			case .any: .any
-			case .undo: .redo
-			case .redo: .undo
-			}
-		}
-	}
-
-	func active(in direction: Direction) -> Bool {
-		switch direction {
-		case .any:
-			isUndoing || isRedoing
-		case .undo:
-			isUndoing
-		case .redo:
-			isRedoing
-		}
-	}
-}
-
-public enum CursorOperationError: Error {
-	case insertArrayCountMismatch
-}
-
-public enum CursorOperation<TextRange> {
-	case resetToSingle(Cursor<TextRange>)
-	case add(TextRange)
-	case addAbove
-	case addBelow
-
-	// this is nearly a map
-	public func translate<OtherRange>(with translator: (TextRange) -> OtherRange?) -> CursorOperation<OtherRange>? {
-		switch self {
-		case .addAbove:
-			return .addAbove
-		case .addBelow:
-			return .addBelow
-		case let .add(textRange):
-			guard let otherRange = translator(textRange) else {
-				return nil
-			}
-			
-			return .add(otherRange)
-		case let .resetToSingle(cursor):
-			guard let otherRange = translator(cursor.textRange) else {
-				return nil
-			}
-			
-			let newCursor = Cursor<OtherRange>(
-				id: cursor.id,
-				textRange: otherRange,
-				alignment: cursor.alignment,
-				affinity: cursor.affinity
-			)
-			
-			return .resetToSingle(newCursor)
-		}
-	}
-}
-
 public final class MultiCursorState<System: TextSystemInterface> {
 	public typealias TextRange = System.TextRange
+	public typealias CursorChangedHandler = (_ added: Set<UUID>, _ deleted: Set<UUID>, _ changed: Set<UUID>) -> Void
+	public typealias InputOperationProgress = (_ operation: InputOperation, _ count: Int, _ total: Int) -> Int
+	public typealias InputOperationCompleted = (_ operation: InputOperation) -> Void
 
 	typealias Processor = InputOperationProcessor<System>
 
-	public var cursors: [Cursor<TextRange>] {
-		didSet {
-//			let current = Set(cursors.map({ $0.id }))
-//			let old = Set(oldValue.map({ $0.id }))
-//
-//			let deleted = old.subtracting(current)
-//			let added = current.subtracting(old)
-//			let changed = current.intersection(old)
-//
-//			cursorsChanged(added, deleted, changed)
-		}
-	}
-	
 	private var validRange: TextRange
 	private var leadingPendingOperations: [InputOperation] = []
 	private var trailingPendingOperations: [InputOperation] = []
 	private let processor: Processor
+	private var buffering = false
+	private var internalCursors: [Cursor<TextRange>] = []
 
-	/// Added, Deleted, Changed
-	public var cursorsChanged: (_ added: Set<UUID>, _ deleted: Set<UUID>, _ changed: Set<UUID>) -> Void = { _, _, _ in }
-	public var undoManagerProvider: (() -> UndoManager?)?
-	public var buffering = false
+	public var cursorsChanged: CursorChangedHandler = { _, _, _ in }
+	public var undoManagerProvider: () -> UndoManager? = { nil }
 
 	public init(cursors: [Cursor<TextRange>], system: System) {
-		self.cursors = cursors
+		self.internalCursors = cursors
 		self.processor = Processor(textSystem: system)
 		self.validRange = system.fullDocumentRange
 	}
@@ -109,11 +32,22 @@ public final class MultiCursorState<System: TextSystemInterface> {
 
 	public var cursorSet: CursorSet<TextRange> {
 		// this is very inefficient
-		CursorSet(ranges: cursors.map({ $0.textRange }))
+		CursorSet(ranges: internalCursors.map({ $0.textRange }))
 	}
 
 	private var undoManager: UndoManager? {
-		undoManagerProvider?()
+		undoManagerProvider()
+	}
+
+	public var cursors: [Cursor<TextRange>] {
+		get {
+			internalCursors
+		}
+		set {
+			withCursorChanges(affectingContent: false) {
+				self.internalCursors = newValue
+			}
+		}
 	}
 }
 
@@ -125,19 +59,19 @@ extension MultiCursorState {
 	private func validateOperation(_ operation: InputOperation) throws {
 		// check bounds for an array-based insert
 		if case .insertTextArray(let array) = operation {
-			if array.count != cursors.count {
+			if array.count != internalCursors.count {
 				throw CursorOperationError.insertArrayCountMismatch
 			}
 		}
 	}
 
-	private func apply(_ operation: InputOperation, at index: Int) -> Int? {
+	private func apply(_ operation: InputOperation, at index: Int, delta: Int) -> (Int, Int)? {
 		var newCursors = cursors
 		var cursor = cursors[index]
 
 		let perCursorOp = operation.indexedOperation(for: index)
 
-		guard let output = processor.apply(perCursorOp, to: cursor, delta: 0) else {
+		guard let output = processor.apply(perCursorOp, to: cursor, delta: delta) else {
 			return nil
 		}
 
@@ -150,33 +84,21 @@ extension MultiCursorState {
 
 		newCursors[index] = cursor
 
-		// now apply delta to following cursors that need it
-		let delta = output.delta
-		if delta != 0 {
-			let start = min(index + 1, newCursors.endIndex)
+		commitCursorChange(newCursors, affectsContent: operation.affectsContent)
 
-			for i in start..<newCursors.endIndex {
-				if let calRange = CalculatedRange(newCursors[i].textRange, calculator: textSystem).offset(by: delta) {
-					newCursors[i].textRange = calRange.range
-				}
-			}
-		}
-
-		commitCursorChange(newCursors, withUndo: operation.supportsUndo)
-
-		return index
+		return (index, output.delta)
 	}
 
-	private func commitCursorChange(_ newCursors: [Cursor<System.TextRange>], withUndo undoable: Bool) {
-		if let undoManager, undoable {
+	private func commitCursorChange(_ newCursors: [Cursor<System.TextRange>], affectsContent: Bool) {
+		if let undoManager, affectsContent {
 			nonisolated(unsafe) let cursorSnapshot = cursors
 
 			undoManager.registerUndo(withTarget: self) { target in
-				target.commitCursorChange(cursorSnapshot, withUndo: true)
+				target.commitCursorChange(cursorSnapshot, affectsContent: true)
 			}
 		}
 
-		self.cursors = newCursors
+		self.internalCursors = newCursors
 	}
 
 	public func apply(_ operation: InputOperation) throws {
@@ -187,27 +109,32 @@ extension MultiCursorState {
 
 	public func apply(_ operation: InputOperation, prioritizing priorityTextRange: TextRange) throws {
 		try validateOperation(operation)
-		let undoable = operation.supportsUndo
+		let affectsContent = operation.affectsContent
 
-		bufferCursorChanges(withUndo: undoable) {
+		withCursorChanges(affectingContent: affectsContent) {
 			ensureOperationsProcessed(for: priorityTextRange)
 
 			let priorityRange = CalculatedRange(priorityTextRange, calculator: textSystem)
 
-			let lastAffected = cursors.lastIndex { cursor in
+			let firstAffected = internalCursors.firstIndex { cursor in
 				let cursorLower = CalculatedPosition(cursor.textRange.lowerBound, calculator: textSystem)
 
 				// if this cursor starts after our priority range, it is unaffected
 				return cursorLower > priorityRange.upperBound
 			}
 
-			// we now walk backwards from the first
-			var index = lastAffected ?? (cursors.endIndex - 1)
+			var index = firstAffected ?? internalCursors.startIndex
+			var totalDelta = 0
 
-			while index >= 0 {
-				index = apply(operation, at: index) ?? index
+			while index < internalCursors.endIndex {
+				// this work can potentially change the number of cursors, so it turns
+				// what index the input corresponds to.
+				let (newIndex, delta) = apply(operation, at: index, delta: totalDelta) ?? (index, 0)
 
-				index -= 1
+				index = newIndex
+				totalDelta += delta
+
+				index += 1
 			}
 		}
 	}
@@ -225,51 +152,54 @@ extension MultiCursorState {
 }
 
 extension MultiCursorState {
-	private func publishCurrentCursorStateForUndo(_ currentSet: Set<UUID>, direction: UndoManager.Direction) {
-		guard let undoManager else { return }
-
-		if undoManager.active(in: direction) {
-			cursorsChanged(Set(), Set(), currentSet)
-		}
-
-		undoManager.registerUndo(withTarget: self) { target in
-			let snapshotIdSet = Set(target.cursors.map({ $0.id }))
-
-			target.publishCurrentCursorStateForUndo(snapshotIdSet, direction: direction)
-		}
-	}
-
-	private func bufferCursorChanges(withUndo undoable: Bool, _ block: () -> Void) {
-		if buffering {
+	private func withCursorChanges(affectingContent: Bool, _ block: () -> Void) {
+		guard buffering == false else {
 			block()
 			return
 		}
 
 		self.buffering = true
-		let old = Set(cursors.map({ $0.id }))
 
-		if undoable {
-			undoManager?.beginUndoGrouping()
+		// set up the action we need to take on undo/redo
+		let actions = UndoManager.GroupActions<MultiCursorState>(
+			enter: { [textSystem] _ in
+				textSystem.beginEditing()
+			},
+			leave: { [textSystem] target in
+				textSystem.endEditing()
 
-			publishCurrentCursorStateForUndo(old, direction: .undo)
+				// this is *only* necessary when undo operations are occuring
+				guard target.undoManager?.isActive == true else { return }
+
+				let currentSet = Set(self.internalCursors.map({ $0.id }))
+
+				target.cursorsChanged(Set(), Set(), currentSet)
+			}
+		)
+
+		// compute the old cursor set before taking any actions
+		let old = Set(internalCursors.map({ $0.id }))
+
+		// actually run the work, within the action group, but only if it affects content
+		if affectingContent {
+			actions.withUndoGrouping(for: undoManager, target: self, block)
+		} else {
+			block()
 		}
 
-		block()
+		let current = Set(internalCursors.map({ $0.id }))
 
-		let current = Set(cursors.map({ $0.id }))
-		let deleted = old.subtracting(current)
-		let added = current.subtracting(old)
-		let changed = current.intersection(old)
-
-		cursorsChanged(added, deleted, changed)
-
-		if undoable {
-			publishCurrentCursorStateForUndo(current, direction: .redo)
-
-			undoManager?.endUndoGrouping()
-		}
+		handleChangedCursors(from: old, to: current)
 
 		buffering = false
+	}
+
+	private func handleChangedCursors(from oldValue: Set<UUID>, to newValue: Set<UUID>) {
+		let deleted = oldValue.subtracting(newValue)
+		let added = newValue.subtracting(oldValue)
+		let changed = newValue.intersection(oldValue)
+
+		cursorsChanged(added, deleted, changed)
 	}
 
 	private func location(for range: TextRange) -> CGFloat? {
@@ -277,65 +207,70 @@ extension MultiCursorState {
 	}
 
 	public func mutateCursors(with operation: CursorOperation<TextRange>) {
-		bufferCursorChanges(withUndo: false) {
-			switch operation {
-			case var .resetToSingle(cursor):
-				cursor.alignment = location(for: cursor.textRange)
+		// I don't think the buffering is actually important here, but the diff calculation and change publishing is
+		withCursorChanges(affectingContent: false) {
+			unbufferedMutateCursors(with: operation)
+		}
+	}
 
-				self.cursors = [cursor]
-			case let .add(textRange):
-				let alignment = location(for: textRange)
-				let newCursor = Cursor(textRange, alignment: alignment, affinity: nil)
+	private func unbufferedMutateCursors(with operation: CursorOperation<TextRange>) {
+		switch operation {
+		case var .resetToSingle(cursor):
+			cursor.alignment = location(for: cursor.textRange)
 
-				var newCursors = cursors
+			self.cursors = [cursor]
+		case let .add(textRange):
+			let alignment = location(for: textRange)
+			let newCursor = Cursor(textRange, alignment: alignment, affinity: nil)
 
-				// inserting at the right spot would be more efficient
-				newCursors.append(newCursor)
-				newCursors.sort { a, b in
-					let aLower = a.textRange.lowerBound
-					let bLower = b.textRange.lowerBound
+			var newCursors = cursors
 
-					return processor.textSystem.compare(aLower, to: bLower) == .orderedAscending
-				}
+			// inserting at the right spot would be more efficient
+			newCursors.append(newCursor)
+			newCursors.sort { a, b in
+				let aLower = a.textRange.lowerBound
+				let bLower = b.textRange.lowerBound
 
-				self.cursors = newCursors
-			case .addAbove:
-				guard let cursor = cursors.first else { return }
-
-				let textRange = textSystem.textRange(
-					from: cursor.textRange,
-					moving: .up(alignment: cursor.alignment),
-					by: .character
-				)
-
-				guard let textRange else {
-					fatalError()
-				}
-
-				let alignment = location(for: textRange)
-				let newCursor = Cursor(textRange, alignment: alignment, affinity: cursor.affinity)
-
-				self.cursors.insert(newCursor, at: 0)
-			case .addBelow:
-				guard let cursor = cursors.last else {
-					return
-				}
-
-				let textRange = processor.textSystem.textRange(
-					from: cursor.textRange,
-					moving: .down(alignment: cursor.alignment),
-					by: .character
-				)
-
-				guard let textRange else {
-					fatalError()
-				}
-
-				let alignment = location(for: textRange)
-				let newCursor = Cursor(textRange, alignment: alignment, affinity: cursor.affinity)
-
-				self.cursors.append(newCursor)
+				return processor.textSystem.compare(aLower, to: bLower) == .orderedAscending
 			}
+
+			self.cursors = newCursors
+		case .addAbove:
+			guard let cursor = internalCursors.first else { return }
+
+			let textRange = textSystem.textRange(
+				from: cursor.textRange,
+				moving: .up(alignment: cursor.alignment),
+				by: .character
+			)
+
+			guard let textRange else {
+				fatalError()
+			}
+
+			let alignment = location(for: textRange)
+			let newCursor = Cursor(textRange, alignment: alignment, affinity: cursor.affinity)
+
+			self.internalCursors.insert(newCursor, at: 0)
+		case .addBelow:
+			guard let cursor = internalCursors.last else {
+				return
+			}
+
+			let textRange = processor.textSystem.textRange(
+				from: cursor.textRange,
+				moving: .down(alignment: cursor.alignment),
+				by: .character
+			)
+
+			guard let textRange else {
+				fatalError()
+			}
+
+			let alignment = location(for: textRange)
+			let newCursor = Cursor(textRange, alignment: alignment, affinity: cursor.affinity)
+
+			self.internalCursors.append(newCursor)
 		}
 	}
 }

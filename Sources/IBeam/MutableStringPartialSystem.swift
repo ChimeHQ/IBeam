@@ -8,34 +8,11 @@ import UIKit
 
 import Rearrange
 
-//extension NSMutableAttributedString {
-//	/// Compute and register the inverse mutation required to undo replacing the content within `range`.
-//	public func registerMutationUndo(
-//		with undoManager: UndoManager?,
-//		range: NSRange,
-//		delta: Int
-//	) {
-//		guard let undoManager else {
-//			return
-//		}
-//
-//		// while this is technically cheating, I believe it to be safe
-//		nonisolated(unsafe) let existingString = attributedSubstring(from: range)
-//		let newLength = existingString.length + max(delta, 0)
-//
-//		precondition(newLength > 0)
-//
-//		let inverseRange = NSRange(location: range.location, length: newLength)
-//
-//		undoManager.registerUndo(withTarget: self, handler: { target in
-//			target.replaceCharacters(in: inverseRange, with: existingString)
-//		})
-//	}
-//}
-
 /// Implements a large portion of the T`extSystemInterface` protocol for `NSMutableAttributedString`-compatible backing stores.
 public final class MutableStringPartialInterface {
 	private let content: NSMutableAttributedString
+	public var willBeginEditing: (() -> Void)?
+	public var didEndEditing: (() -> Void)?
 	public var willApplyMutation: ((TextRange, NSAttributedString) -> Void)?
 
 	public init(_ content: NSMutableAttributedString) {
@@ -90,11 +67,13 @@ extension MutableStringPartialInterface {
 
 	// content mutation
 	public func beginEditing() {
+		willBeginEditing?()
 		content.beginEditing()
 	}
 
 	public func endEditing() {
 		content.endEditing()
+		didEndEditing?()
 	}
 
 	public func applyMutation(_ range: NSRange, string: NSAttributedString, undoManager: UndoManager?) -> MutationOutput<NSRange>? {

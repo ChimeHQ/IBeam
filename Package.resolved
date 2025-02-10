@@ -1,0 +1,15 @@
+{
+  "originHash" : "c3178b0163bef10c95919d9b1e7211bafe3aefefd5591f7a0cb8e9966129c422",
+  "pins" : [
+    {
+      "identity" : "rearrange",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ChimeHQ/Rearrange",
+      "state" : {
+        "branch" : "main",
+        "revision" : "8e3b90208a7ed89f304e4daafd06b905f6657f6d"
+      }
+    }
+  ],
+  "version" : 3
+}

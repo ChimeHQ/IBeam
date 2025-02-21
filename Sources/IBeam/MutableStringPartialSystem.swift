@@ -8,7 +8,7 @@ import UIKit
 
 import Rearrange
 
-/// Implements a large portion of the T`extSystemInterface` protocol for `NSMutableAttributedString`-compatible backing stores.
+/// Implements a large portion of the `TextSystemInterface` protocol for `NSMutableAttributedString`-compatible backing stores.
 public final class MutableStringPartialInterface {
 	private let content: NSMutableAttributedString
 	public var willBeginEditing: (() -> Void)?

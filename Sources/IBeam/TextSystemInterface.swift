@@ -111,7 +111,7 @@ extension TextSystemInterface {
 }
 
 extension TextSystemInterface where Self: AnyObject, TextRange: Sendable {
-	public func registerMutationUndo(
+	func registerMutationUndo(
 		with undoManager: UndoManager?,
 		range: TextRange,
 		substringProvider: (TextRange) -> (AttributedString, Int)?

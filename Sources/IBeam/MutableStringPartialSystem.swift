@@ -31,16 +31,8 @@ public final class MutableStringPartialInterface {
 extension MutableStringPartialInterface : TextRangeCalculating {
 	public typealias TextRange = NSRange
 
-	public var beginningOfDocument: Int {
-		0
-	}
-
 	public var endOfDocument: Int {
 		content.length
-	}
-
-	public func textRange(from start: Position, to end: Position) -> NSRange? {
-		NSRange(start..<end)
 	}
 }
 

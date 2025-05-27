@@ -35,7 +35,7 @@ struct InputOperationProcessor<System: TextSystemInterface> {
 		textSystem.layoutDirection(at: position) ?? .leftToRight
 	}
 
-	public func apply(_ operation: InputOperation, to cursor: Cursor<System.TextRange>, delta: Int) -> Output? {
+	public func apply(_ operation: InputOperation, to cursor: Cursor<System.TextRange>, delta: Int) throws -> Output? {
 		// step one, apply delta
 		let range = CalculatedRange(cursor.textRange, calculator: textSystem).offset(by: delta)
 
@@ -45,9 +45,9 @@ struct InputOperationProcessor<System: TextSystemInterface> {
 
 		switch operation {
 		case let .insertText(value):
-			return textSystem.applyMutation(range.range, string: value)
+			return try textSystem.applyMutation(range.range, string: value)
 		case let .deleteBackwards(value):
-			return deleteBackwards(granularity: value, textRange: range)
+			return try deleteBackwards(granularity: value, textRange: range)
 		case let .moveLeft(granularity, selecting):
 			return moveLeft(
 				granularity: granularity,
@@ -75,7 +75,7 @@ struct InputOperationProcessor<System: TextSystemInterface> {
 		}
 	}
 
-	private func deleteBackwards(granularity: TextGranularity, textRange: CalculatedRange<System>) -> Output? {
+	private func deleteBackwards(granularity: TextGranularity, textRange: CalculatedRange<System>) throws -> Output? {
 		let emptyString = AttributedString()
 
 		if textRange.isEmpty {
@@ -86,10 +86,10 @@ struct InputOperationProcessor<System: TextSystemInterface> {
 				return nil
 			}
 
-			return textSystem.applyMutation(deleteRange, string: emptyString)
+			return try textSystem.applyMutation(deleteRange, string: emptyString)
 		}
 
-		return textSystem.applyMutation(textRange.range, string: emptyString)
+		return try textSystem.applyMutation(textRange.range, string: emptyString)
 	}
 
 	private func moveLeft(

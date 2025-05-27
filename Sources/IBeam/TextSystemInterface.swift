@@ -54,7 +54,7 @@ public protocol TextSystemInterface : TextRangeCalculating, AnyObject {
 	// content mutation
 	func beginEditing()
 	func endEditing()
-	func applyMutation(_ range: TextRange, string: AttributedString) -> MutationOutput<TextRange>?
+	func applyMutation(_ range: TextRange, string: AttributedString) throws -> MutationOutput<TextRange>
 }
 
 extension TextSystemInterface {
@@ -133,7 +133,7 @@ extension TextSystemInterface where Self: AnyObject, TextRange: Sendable {
 		}
 
 		undoManager.registerUndo(withTarget: self, handler: { target in
-			_ = target.applyMutation(inverseRange, string: existing)
+			_ = try! target.applyMutation(inverseRange, string: existing)
 		})
 	}
 }

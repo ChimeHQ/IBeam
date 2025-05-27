@@ -71,7 +71,7 @@ extension MultiCursorState {
 
 		let perCursorOp = operation.indexedOperation(for: index)
 
-		guard let output = processor.apply(perCursorOp, to: cursor, delta: delta) else {
+		guard let output = try? processor.apply(perCursorOp, to: cursor, delta: delta) else {
 			return nil
 		}
 

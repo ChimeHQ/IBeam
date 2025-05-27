@@ -92,7 +92,7 @@ public final class MockTextSystem : TextSystemInterface {
 		partialSystem.endEditing()
 	}
 
-	public func applyMutation(_ range: TextRange, string: AttributedString) -> MutationOutput<TextRange>? {
+	public func applyMutation(_ range: TextRange, string: AttributedString) -> MutationOutput<TextRange> {
 		let undoManager = undoManagerProvider?()
 
 		return partialSystem.applyMutation(range, string: string, undoManager: undoManager)

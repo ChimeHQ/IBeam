@@ -68,7 +68,7 @@ extension MutableStringPartialInterface {
 		didEndEditing?()
 	}
 
-	public func applyMutation(_ range: NSRange, string: NSAttributedString, undoManager: UndoManager?) -> MutationOutput<NSRange>? {
+	public func applyMutation(_ range: NSRange, string: NSAttributedString, undoManager: UndoManager?) -> MutationOutput<NSRange> {
 		let plainString = string.string
 		let length = plainString.utf16.count
 		let delta = length - range.length
@@ -98,7 +98,7 @@ extension MutableStringPartialInterface {
 		return MutationOutput<NSRange>(selection: newSelection, delta: delta)
 	}
 
-	public func applyMutation(_ range: NSRange, string: AttributedString, undoManager: UndoManager?) -> MutationOutput<NSRange>? {
+	public func applyMutation(_ range: NSRange, string: AttributedString, undoManager: UndoManager?) -> MutationOutput<NSRange> {
 		let nsAttrString = NSAttributedString(string)
 
 		return applyMutation(range, string: nsAttrString, undoManager: undoManager)

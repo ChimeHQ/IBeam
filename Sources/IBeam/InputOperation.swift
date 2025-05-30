@@ -35,25 +35,31 @@ public enum InputOperation {
 #if os(macOS)
 	public init?(selector: Selector) {
 		switch selector {
+		case #selector(NSResponder.deleteBackward(_:)):
+			self = .deleteBackwards(.character)
+		case #selector(NSResponder.deleteToBeginningOfLine(_:)):
+			self = .deleteBackwards(.line)
 		case #selector(NSResponder.moveLeft(_:)):
 			self = .moveLeft(.character)
 		case #selector(NSResponder.moveLeftAndModifySelection(_:)):
 			self = .moveLeft(.character, selecting: true)
+		case #selector(NSResponder.moveToLeftEndOfLine(_:)):
+			self = .moveToLeftEndOfLine(selecting: false)
 		case #selector(NSResponder.moveRight(_:)):
 			self = .moveRight(.character)
 		case #selector(NSResponder.moveRightAndModifySelection(_:)):
 			self = .moveRight(.character, selecting: true)
+		case #selector(NSResponder.moveToRightEndOfLine(_:)):
+			self = .moveToRightEndOfLine(selecting: false)
 		case #selector(NSResponder.moveDown(_:)):
 			self = .moveDown
 		case #selector(NSResponder.moveUp(_:)):
 			self = .moveUp
-		case #selector(NSResponder.deleteBackward(_:)):
-			self = .deleteBackwards(.character)
-		case #selector(NSResponder.moveToLeftEndOfLine(_:)):
-			self = .moveToLeftEndOfLine(selecting: false)
-		case #selector(NSResponder.moveToRightEndOfLine(_:)):
-			self = .moveToRightEndOfLine(selecting: false)
 		default:
+			if NSResponder.selectorsAffectingCursor.contains(selector) {
+				print("WARNING: Unhandled cursor mutation \(selector). This could result in state corruption.")
+			}
+
 			return nil
 		}
 	}

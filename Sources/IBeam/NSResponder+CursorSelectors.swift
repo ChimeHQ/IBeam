@@ -3,7 +3,7 @@ import AppKit
 
 extension NSResponder {
 	/// The set of all selectors that could affect cursors.
-	static let selectorsAffectingCursor: Set<Selector> = [
+	nonisolated static let selectorsAffectingCursor: Set<Selector> = [
 		#selector(capitalizeWord(_:)),
 		#selector(centerSelectionInVisibleArea(_:)),
 		#selector(changeCaseOfLetter(_:)),
@@ -67,16 +67,8 @@ extension NSResponder {
 		#selector(moveWordLeftAndModifySelection(_:)),
 		#selector(moveWordRight(_:)),
 		#selector(moveWordRightAndModifySelection(_:)),
-		#selector(pageDown(_:)),
 		#selector(pageDownAndModifySelection(_:)),
-		#selector(pageUp(_:)),
 		#selector(pageUpAndModifySelection(_:)),
-		#selector(scrollLineDown(_:)),
-		#selector(scrollLineUp(_:)),
-		#selector(scrollPageDown(_:)),
-		#selector(scrollPageUp(_:)),
-		#selector(scrollToBeginningOfDocument(_:)),
-		#selector(scrollToEndOfDocument(_:)),
 		#selector(selectAll(_:)),
 		#selector(selectLine(_:)),
 		#selector(selectParagraph(_:)),

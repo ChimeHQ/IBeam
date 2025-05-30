@@ -77,6 +77,38 @@ final class MultiCursorStateTests {
 	}
 
 	@Test
+	func deleteBackwardsByLine() throws {
+		let state = MultiCursorState(
+			string: "aaaa\nbbbb\ncccc\n",
+			textRanges: [
+				NSRange(1..<3),
+				NSRange(8..<8),
+				NSRange(10..<10),
+			]
+		)
+
+		state.textSystem.responses = [
+			.boundingRect(nil),
+
+			.position(8 - 2 - 3),
+			.boundingRect(nil),
+
+			.position(10 - 2 - 3),
+			.boundingRect(nil),
+		]
+
+		try state.apply(.deleteBackwards(.line))
+
+		let expectedCursorRanges = [
+			NSRange(1..<1),
+			NSRange(3..<3),
+			NSRange(5..<5),
+		]
+		#expect(state.cursors.map { $0.textRange } == expectedCursorRanges)
+		#expect(state.textSystem.string == "aa\nb\ncccc\n")
+	}
+
+	@Test
 	func moveLeftByCharacter() throws {
 		let state = MultiCursorState(
 			string: "aaaa\nbbbb\ncccc\n",

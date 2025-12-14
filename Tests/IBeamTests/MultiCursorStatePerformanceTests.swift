@@ -4,6 +4,7 @@ import IBeam
 final class MultiCursorStatePerformanceTests: XCTestCase {
 	typealias CursorState = MultiCursorState<MockTextSystem>
 
+	@MainActor
 	func testLargeNumberOfCursors() throws {
 		let count = 5000
 		let baseString = "abcdef\n"
@@ -41,33 +42,4 @@ final class MultiCursorStatePerformanceTests: XCTestCase {
 			try! state.apply(.insertText("1"), prioritizing: priorityRange)
 		}
 	}
-}
-
-import SwiftUI
-
-@MainActor
-class MainActorThing {
-	// *if* you can make the init nonisolated, this becomes trivial.
-	// But you do not own the type, so that's out.
-	init() {
-	}
-}
-
-private struct CustomKey: EnvironmentKey {
-	static var defaultValue: MainActorThing? {
-		// this is gross, but its the only option I can think of that could compile.
-		// I'm not sure this will work at runtime though...
-		guard Thread.isMainThread else { return nil }
-
-		return MainActor.assumeIsolated {
-			MainActorThing()
-		}
-	}
-}
-
-extension EnvironmentValues {
-  var customValue: MainActorThing? {
-	get { self[CustomKey.self] }
-	set { self[CustomKey.self] = newValue }
-  }
 }

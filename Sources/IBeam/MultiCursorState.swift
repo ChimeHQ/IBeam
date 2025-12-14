@@ -2,6 +2,7 @@ import Foundation
 
 import Rearrange
 
+@preconcurrency @MainActor
 public final class MultiCursorState<System: TextSystemInterface> {
 	public typealias TextRange = System.TextRange
 	public typealias CursorChangedHandler = (_ added: Set<UUID>, _ deleted: Set<UUID>, _ changed: Set<UUID>) -> Void
@@ -264,7 +265,7 @@ extension MultiCursorState {
 			)
 
 			guard let textRange else {
-				fatalError()
+				return
 			}
 
 			let alignment = location(for: textRange)

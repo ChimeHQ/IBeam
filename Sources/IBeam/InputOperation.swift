@@ -33,7 +33,7 @@ public enum InputOperation {
 	}
 
 #if os(macOS)
-	public init?(selector: Selector) {
+	public init?(selector: Selector, lineEnding: String = "\n") {
 		switch selector {
 		case #selector(NSResponder.deleteBackward(_:)):
 			self = .deleteBackwards(.character)
@@ -55,6 +55,8 @@ public enum InputOperation {
 			self = .moveDown
 		case #selector(NSResponder.moveUp(_:)):
 			self = .moveUp
+		case #selector(NSResponder.insertNewline(_:)):
+			self = .insertText(AttributedString(lineEnding))
 		default:
 			if NSResponder.selectorsAffectingCursor.contains(selector) {
 				print("WARNING: Unhandled cursor mutation \(selector). This could result in state corruption.")

@@ -1,5 +1,27 @@
 import Foundation
 
+extension NSAttributedString {
+	public func layoutDirection(at position: Int) -> TextLayoutDirection? {
+		if position >= length {
+			return nil
+		}
+
+		let attrs = attributes(at: position, effectiveRange: nil)
+		guard let direction = attrs[.writingDirection] as? NSNumber else {
+			return nil
+		}
+
+		return switch direction.intValue {
+		case NSWritingDirection.leftToRight.rawValue:
+			.leftToRight
+		case NSWritingDirection.rightToLeft.rawValue:
+			.rightToLeft
+		default:
+			nil
+		}
+	}
+}
+
 #if os(macOS)
 import AppKit
 #elseif canImport(UIKit)
@@ -38,23 +60,7 @@ extension MutableStringPartialInterface : TextRangeCalculating {
 
 extension MutableStringPartialInterface {
 	public func layoutDirection(at position: Int) -> TextLayoutDirection? {
-		if position >= content.length {
-			return nil
-		}
-
-		let attrs = content.attributes(at: position, effectiveRange: nil)
-		guard let direction = attrs[.writingDirection] as? NSNumber else {
-			return nil
-		}
-
-		return switch direction.intValue {
-		case NSWritingDirection.leftToRight.rawValue:
-			.leftToRight
-		case NSWritingDirection.rightToLeft.rawValue:
-			.rightToLeft
-		default:
-			nil
-		}
+		content.layoutDirection(at: position)
 	}
 
 	// content mutation
@@ -68,6 +74,7 @@ extension MutableStringPartialInterface {
 		didEndEditing?()
 	}
 
+	@MainActor
 	public func applyMutation(_ range: NSRange, string: NSAttributedString, undoManager: UndoManager?) -> MutationOutput<NSRange> {
 		let plainString = string.string
 		let length = plainString.utf16.count
@@ -76,16 +83,15 @@ extension MutableStringPartialInterface {
 		willApplyMutation?(range, string)
 
 		if let undoManager {
-			nonisolated(unsafe) let existingString = content.attributedSubstring(from: range)
-			nonisolated(unsafe) let capturedUndoManager = undoManager
+			let existingString = content.attributedSubstring(from: range)
 
 			let inverseRange = NSRange(
 				location: range.location,
 				length: range.length + delta
 			)
 
-			undoManager.registerUndo(withTarget: self) { target in
-				_ = target.applyMutation(inverseRange, string: existingString, undoManager: capturedUndoManager)
+			undoManager.registerUndo(withTarget: self) { [weak undoManager] target in
+				_ = target.applyMutation(inverseRange, string: existingString, undoManager: undoManager)
 			}
 		}
 
@@ -98,9 +104,10 @@ extension MutableStringPartialInterface {
 		return MutationOutput<NSRange>(selection: newSelection, delta: delta)
 	}
 
-	public func applyMutation(_ range: NSRange, string: AttributedString, undoManager: UndoManager?) -> MutationOutput<NSRange> {
-		let nsAttrString = NSAttributedString(string)
+	@MainActor
+	public func applyMutation(_ mutation: TextMutation<NSRange>, undoManager: UndoManager?) -> MutationOutput<NSRange> {
+		let nsAttrString = NSAttributedString(mutation.string)
 
-		return applyMutation(range, string: nsAttrString, undoManager: undoManager)
+		return applyMutation(mutation.range, string: nsAttrString, undoManager: undoManager)
 	}
 }

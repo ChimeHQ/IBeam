@@ -9,7 +9,8 @@ import UIKit
 import Rearrange
 
 /// Useful for testing components that rely on the `TextSystem` protocol.
-public final class MockTextSystem : TextSystemInterface {
+@preconcurrency @MainActor
+public final class MockTextSystem: @MainActor TextSystemInterface {
 	public typealias TextRange = NSRange
 	public typealias TextPosition = Int
 
@@ -92,14 +93,14 @@ public final class MockTextSystem : TextSystemInterface {
 		partialSystem.endEditing()
 	}
 
-	public func applyMutation(_ range: TextRange, string: AttributedString) -> MutationOutput<TextRange> {
+	public func applyMutation(_ mutation: TextMutation<TextRange>) -> MutationOutput<TextRange> {
 		let undoManager = undoManagerProvider?()
 
-		return partialSystem.applyMutation(range, string: string, undoManager: undoManager)
+		return partialSystem.applyMutation(mutation, undoManager: undoManager)
 	}
 }
 
-extension MockTextSystem : Equatable {
+extension MockTextSystem: @MainActor Equatable {
 	public static func == (lhs: MockTextSystem, rhs: MockTextSystem) -> Bool {
 		lhs === rhs
 	}

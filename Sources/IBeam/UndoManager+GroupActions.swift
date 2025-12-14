@@ -8,6 +8,7 @@ extension UndoManager {
 
 extension UndoManager {
 	/// A pair of actions to invoke when an undo group is entered/exited as part of an undo or redo.
+	@preconcurrency @MainActor
 	public struct GroupActions<T: AnyObject> {
 		public typealias Action = (_ target: T) -> Void
 
@@ -37,20 +38,16 @@ extension UndoManager {
 		}
 	}
 
-	private func invokeAction<T: AnyObject>(for target: T, _ action: @escaping @Sendable (_ undoing: Bool, _ target: T) -> Void) {
+	private func invokeAction<T: AnyObject>(for target: T, _ action: @escaping (_ undoing: Bool, _ target: T) -> Void) {
 		action(isUndoing, target)
 
-		nonisolated(unsafe) weak var manager = self
-
-		registerUndo(withTarget: target) { target in
-			manager?.invokeAction(for: target, action)
+		registerUndo(withTarget: target) { [weak self] target in
+			self?.invokeAction(for: target, action)
 		}
 	}
 
 	public func withUndoGrouping<T: AnyObject>(target: T, actions: GroupActions<T>, _ block: () -> Void) {
 		beginUndoGrouping()
-
-		nonisolated(unsafe) let actions = actions
 
 		invokeAction(for: target) { undoing, innerTarget in
 			if undoing {

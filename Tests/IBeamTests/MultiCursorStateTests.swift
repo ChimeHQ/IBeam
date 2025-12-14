@@ -19,7 +19,8 @@ extension MultiCursorState where System == MockTextSystem {
 	}
 }
 
-final class MultiCursorStateTests {
+@MainActor
+struct MultiCursorStateTests {
 	typealias CursorState = MultiCursorState<MockTextSystem>
 
 	@Test
@@ -447,5 +448,29 @@ extension MultiCursorStateTests {
 		#expect(state.cursors.map { $0.textRange } == expectedCursors.map({ $0.0 }))
 		#expect(state.cursors.map { $0.alignment } == expectedCursors.map({ $0.1 }))
 		#expect(state.textSystem.string == "aaaa\nbbbb\ncccc\n")
+	}
+
+	@Test
+	func addCursorBelowToNonexistantRange() throws {
+		let state = MultiCursorState(
+			string: "aaaa\n",
+			textRanges: [
+				(NSRange(1..<1), 5.0, nil),
+			]
+		)
+
+		state.textSystem.responses = [
+			.position(nil)
+		]
+
+		state.mutateCursors(with: .addBelow)
+
+		let expectedCursors: [(NSRange, CGFloat)] = [
+			(NSRange(1..<1), 5.0)
+		]
+		#expect(state.cursors.map { $0.textRange } == expectedCursors.map({ $0.0 }))
+		#expect(state.cursors.map { $0.alignment } == expectedCursors.map({ $0.1 }))
+		#expect(state.textSystem.string == "aaaa\n")
+
 	}
 }

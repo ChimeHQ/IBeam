@@ -43,7 +43,21 @@ extension MutationOutput: Equatable where TextRange: Equatable {}
 extension MutationOutput: Hashable where TextRange: Hashable {}
 extension MutationOutput: Sendable where TextRange: Sendable {}
 
-public protocol TextSystemInterface : TextRangeCalculating, AnyObject {
+public struct TextMutation<TextRange> {
+	public let range: TextRange
+	public let string: AttributedString
+	public let cursorId: UUID
+	public let offset: Int
+
+	public init(range: TextRange, string: AttributedString, cursorId: UUID, offset: Int) {
+		self.range = range
+		self.string = string
+		self.cursorId = cursorId
+		self.offset = offset
+	}
+}
+
+public protocol TextSystemInterface: TextRangeCalculating, AnyObject {
 	// geometry
 	func boundingRect(for range: TextRange) -> CGRect?
 
@@ -54,10 +68,21 @@ public protocol TextSystemInterface : TextRangeCalculating, AnyObject {
 	// content mutation
 	func beginEditing()
 	func endEditing()
-	func applyMutation(_ range: TextRange, string: AttributedString) throws -> MutationOutput<TextRange>
+	func applyMutation(_ mutation: TextMutation<TextRange>) throws -> MutationOutput<TextRange>
 }
 
 extension TextSystemInterface {
+	func applyMutation(_ range: TextRange, string: AttributedString, cursorId: UUID, offset: Int) throws -> MutationOutput<TextRange> {
+		let mutation = TextMutation(
+			range: range,
+			string: string,
+			cursorId: cursorId,
+			offset: offset
+		)
+
+		return try applyMutation(mutation)
+	}
+
 	public var fullDocumentRange: TextRange {
 		guard let range = textRange(from: beginningOfDocument, to: endOfDocument) else {
 			fatalError("a system must be able to compute fullDocumentRange")
@@ -107,33 +132,5 @@ extension TextSystemInterface {
 		let alignment = boundingRect(for: range)?.origin.x
 
 		return Cursor<TextRange>(range, alignment: alignment, affinity: nil)
-	}
-}
-
-extension TextSystemInterface where Self: AnyObject, TextRange: Sendable {
-	func registerMutationUndo(
-		with undoManager: UndoManager?,
-		range: TextRange,
-		substringProvider: (TextRange) -> (AttributedString, Int)?
-	) {
-		guard
-			let undoManager,
-			let (existing, length) = substringProvider(range)
-		else {
-			return
-		}
-
-		let start = range.lowerBound
-
-		guard
-			let end = position(from: start, offset: length),
-			let inverseRange = textRange(from: start, to: end)
-		else {
-			return
-		}
-
-		undoManager.registerUndo(withTarget: self, handler: { target in
-			_ = try! target.applyMutation(inverseRange, string: existing)
-		})
 	}
 }

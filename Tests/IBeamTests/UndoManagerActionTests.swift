@@ -2,6 +2,7 @@ import Foundation
 import Testing
 import IBeam
 
+@MainActor
 class MockState {
 	var value: Int
 	weak var undoManager: UndoManager?
@@ -25,12 +26,13 @@ class MockState {
 	}
 }
 
+@MainActor
 struct UndoManagerActionTests {
 	@Test
 	func undoWithGroup() {
 		let manager = UndoManager()
-		nonisolated(unsafe) let state = MockState(value: 1, undoManager: manager)
-		nonisolated(unsafe) var events = [String]()
+		let state = MockState(value: 1, undoManager: manager)
+		var events = [String]()
 
 		state.handler = { events.append(String($0)) }
 

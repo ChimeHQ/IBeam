@@ -20,9 +20,10 @@ concurrency:
 jobs:
   test:
     name: Test
-    runs-on: macOS-15
+    timeout-minutes: 30
+    runs-on: macos-26
     env:
-      DEVELOPER_DIR: /Applications/Xcode_26.0.app
+      DEVELOPER_DIR: /Applications/Xcode_26.4.app
     strategy:
       matrix:
         destination:
@@ -30,8 +31,8 @@ jobs:
           - "platform=macOS,variant=Mac Catalyst"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Test platform ${{ matrix.destination }}
-        run: set -o pipefail && xcodebuild -scheme IBeam -destination "${{ matrix.destination }}" test | xcbeautify
+        run: set -o pipefail && xcodebuild -scheme IBeam -destination "${{ matrix.destination }}" test

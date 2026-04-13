@@ -35,7 +35,7 @@ public final class MutableStringPartialInterface {
 	private let content: NSMutableAttributedString
 	public var willBeginEditing: (() -> Void)?
 	public var didEndEditing: (() -> Void)?
-	public var willApplyMutation: ((TextRange, NSAttributedString) -> Void)?
+	public var willApplyMutation: ((TextRange, String) -> Void)?
 
 	public init(_ content: NSMutableAttributedString) {
 		self.content = content
@@ -50,7 +50,7 @@ public final class MutableStringPartialInterface {
 	}
 }
 
-extension MutableStringPartialInterface : TextRangeCalculating {
+extension MutableStringPartialInterface: TextRangeCalculating {
 	public typealias TextRange = NSRange
 
 	public var endOfDocument: Int {
@@ -75,15 +75,15 @@ extension MutableStringPartialInterface {
 	}
 
 	@MainActor
-	public func applyMutation(_ range: NSRange, string: NSAttributedString, undoManager: UndoManager?) -> MutationOutput<NSRange> {
-		let plainString = string.string
-		let length = plainString.utf16.count
+	public func applyMutation(_ range: NSRange, string: String, undoManager: UndoManager?) -> MutationOutput<NSRange> {
+		let input = string
+		let length = input.utf16.count
 		let delta = length - range.length
 
 		willApplyMutation?(range, string)
 
 		if let undoManager {
-			let existingString = content.attributedSubstring(from: range)
+			let existingString = content.attributedSubstring(from: range).string
 
 			let inverseRange = NSRange(
 				location: range.location,
@@ -106,8 +106,6 @@ extension MutableStringPartialInterface {
 
 	@MainActor
 	public func applyMutation(_ mutation: TextMutation<NSRange>, undoManager: UndoManager?) -> MutationOutput<NSRange> {
-		let nsAttrString = NSAttributedString(mutation.string)
-
-		return applyMutation(mutation.range, string: nsAttrString, undoManager: undoManager)
+		return applyMutation(mutation.range, string: mutation.string, undoManager: undoManager)
 	}
 }

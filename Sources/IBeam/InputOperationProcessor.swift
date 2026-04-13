@@ -53,6 +53,8 @@ struct InputOperationProcessor<System: TextSystemInterface> {
 			)
 
 			return try textSystem.applyMutation(mutation)
+		case .insertAttributedString:
+			fatalError("this isn't supported yet")
 		case let .deleteBackwards(value):
 			return try deleteBackwards(granularity: value, textRange: range, cursorId: cursor.id, offset: delta)
 		case let .moveLeft(granularity, selecting):
@@ -77,13 +79,15 @@ struct InputOperationProcessor<System: TextSystemInterface> {
 			return moveToRightEndOfLine(textRange: range)
 		case .moveToLeftEndOfLine:
 			return moveToLeftEndOfLine(textRange: range)
+		case .moveToEndOfDocument(selecting: let selecting):
+			return moveToEndOfDocument(selecting: selecting, textRange: range)
 		case .insertTextArray:
 			fatalError("This operation cannot be processed on a per-cursor basis")
 		}
 	}
 
 	private func deleteBackwards(granularity: TextGranularity, textRange: CalculatedRange<System>, cursorId: UUID, offset: Int) throws -> Output? {
-		let emptyString = AttributedString()
+		let emptyString = String()
 
 		if textRange.isEmpty {
 			guard
@@ -286,6 +290,16 @@ struct InputOperationProcessor<System: TextSystemInterface> {
 
 		return textSystem.position(from: pos, moving: .down(alignment: alignment), by: .character)
 			.flatMap { textSystem.textRange(from: $0, to: $0) }
+			.map { Output(selection: $0, delta: 0) }
+	}
+
+	private func moveToEndOfDocument(
+		selecting: Bool,
+		textRange: TextRange
+	) -> Output? {
+		let end = textSystem.endOfDocument
+
+		return textSystem.textRange(from: end, to: end)
 			.map { Output(selection: $0, delta: 0) }
 	}
 }

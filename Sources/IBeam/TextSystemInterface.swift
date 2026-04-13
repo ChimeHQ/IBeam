@@ -45,11 +45,11 @@ extension MutationOutput: Sendable where TextRange: Sendable {}
 
 public struct TextMutation<TextRange> {
 	public let range: TextRange
-	public let string: AttributedString
+	public let string: String
 	public let cursorId: UUID
 	public let offset: Int
 
-	public init(range: TextRange, string: AttributedString, cursorId: UUID, offset: Int) {
+	public init(range: TextRange, string: String, cursorId: UUID, offset: Int) {
 		self.range = range
 		self.string = string
 		self.cursorId = cursorId
@@ -72,7 +72,7 @@ public protocol TextSystemInterface: TextRangeCalculating, AnyObject {
 }
 
 extension TextSystemInterface {
-	func applyMutation(_ range: TextRange, string: AttributedString, cursorId: UUID, offset: Int) throws -> MutationOutput<TextRange> {
+	func applyMutation(_ range: TextRange, string: String, cursorId: UUID, offset: Int) throws -> MutationOutput<TextRange> {
 		let mutation = TextMutation(
 			range: range,
 			string: string,

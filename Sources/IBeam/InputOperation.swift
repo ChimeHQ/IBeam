@@ -10,18 +10,12 @@ public enum InputOperation {
 	case moveRight(TextGranularity, selecting: Bool = false)
 	case moveUp
 	case moveDown
-	case insertText(AttributedString)
-	case insertTextArray([AttributedString])
+	case insertText(String)
+	case insertAttributedString(AttributedString)
+	case insertTextArray([String])
 	case moveToLeftEndOfLine(selecting: Bool = false)
 	case moveToRightEndOfLine(selecting: Bool = false)
-
-	public static func insertText(_ value: String) -> InputOperation {
-		Self.insertText(AttributedString(value))
-	}
-
-	public static func insertTextArray(_ value: [String]) -> InputOperation {
-		Self.insertTextArray(value.map { AttributedString($0) })
-	}
+	case moveToEndOfDocument(selecting: Bool = false)
 
 	func indexedOperation(for cursorIndex: Int) -> InputOperation {
 		switch self {
@@ -56,7 +50,9 @@ public enum InputOperation {
 		case #selector(NSResponder.moveUp(_:)):
 			self = .moveUp
 		case #selector(NSResponder.insertNewline(_:)):
-			self = .insertText(AttributedString(lineEnding))
+			self = .insertText(lineEnding)
+		case #selector(NSResponder.moveToEndOfDocument(_:)):
+			self = .moveToEndOfDocument(selecting: false)
 		default:
 			if NSResponder.selectorsAffectingCursor.contains(selector) {
 				print("WARNING: Unhandled cursor mutation \(selector). This could result in state corruption.")

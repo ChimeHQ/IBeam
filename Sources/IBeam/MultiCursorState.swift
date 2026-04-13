@@ -16,6 +16,7 @@ public final class MultiCursorState<System: TextSystemInterface> {
 	private var trailingPendingOperations: [InputOperation] = []
 	private let processor: Processor
 	private var buffering = false
+	private var mutatingSelection = false
 	private var internalCursors: [Cursor<TextRange>] = []
 
 	public var cursorsChanged: CursorChangedHandler = { _, _, _ in }
@@ -66,6 +67,13 @@ extension MultiCursorState {
 		}
 	}
 
+	private func withSelectionMutation(_ block: () throws -> Void) rethrows {
+		mutatingSelection = true
+		defer { mutatingSelection = false }
+
+		try block()
+	}
+
 	private func apply(_ operation: InputOperation, at index: Int, delta: Int) -> (Int, Int)? {
 		var newCursors = cursors
 		var cursor = cursors[index]
@@ -80,7 +88,7 @@ extension MultiCursorState {
 		cursor.affinity = output.affinity
 
 		if operation.affectsAlignment {
-			cursor.alignment = location(for: output.selection)
+			cursor.alignment = cursorAlignment(for: output.selection)
 		}
 
 		newCursors[index] = cursor
@@ -203,8 +211,15 @@ extension MultiCursorState {
 		cursorsChanged(added, deleted, changed)
 	}
 
-	private func location(for range: TextRange) -> CGFloat? {
+	private func cursorAlignment(for range: TextRange) -> CGFloat? {
 		textSystem.boundingRect(for: range)?.origin.x
+	}
+
+	public func resetToSingleRange(_ range: TextRange) {
+		let alignment = cursorAlignment(for: range)
+		let cursor = Cursor<TextRange>(range, alignment: alignment, affinity: nil)
+
+		mutateCursors(with: .resetToSingle(cursor))
 	}
 
 	public func mutateCursors(with operation: CursorOperation<TextRange>) {
@@ -217,11 +232,11 @@ extension MultiCursorState {
 	private func unbufferedMutateCursors(with operation: CursorOperation<TextRange>) {
 		switch operation {
 		case var .resetToSingle(cursor):
-			cursor.alignment = location(for: cursor.textRange)
+			cursor.alignment = cursorAlignment(for: cursor.textRange)
 
 			self.cursors = [cursor]
 		case let .add(textRange):
-			let alignment = location(for: textRange)
+			let alignment = cursorAlignment(for: textRange)
 			let newCursor = Cursor(textRange, alignment: alignment, affinity: nil)
 
 			var newCursors = cursors
@@ -249,7 +264,7 @@ extension MultiCursorState {
 				fatalError()
 			}
 
-			let alignment = location(for: textRange)
+			let alignment = cursorAlignment(for: textRange)
 			let newCursor = Cursor(textRange, alignment: alignment, affinity: cursor.affinity)
 
 			self.internalCursors.insert(newCursor, at: 0)
@@ -268,10 +283,27 @@ extension MultiCursorState {
 				return
 			}
 
-			let alignment = location(for: textRange)
+			let alignment = cursorAlignment(for: textRange)
 			let newCursor = Cursor(textRange, alignment: alignment, affinity: cursor.affinity)
 
 			self.internalCursors.append(newCursor)
 		}
+	}
+}
+
+extension MultiCursorState: MultiIndicatorViewDelegate {
+	public var numberOfCursors: Int {
+		cursors.count
+	}
+
+	public func boundingRectForCursor(at index: Int) -> CGRect? {
+		let cursor = cursors[index]
+
+		// indicators are only drawn for insertion points
+		if textSystem.offset(from: cursor.textRange.lowerBound, to: cursor.textRange.upperBound) != 0 {
+			return nil
+		}
+
+		return textSystem.boundingRect(for: cursor.textRange)
 	}
 }

@@ -39,7 +39,7 @@ public final class MockTextSystem: @MainActor TextSystemInterface {
 		partialSystem.string
 	}
 
-	public var willApplyMutation: ((TextRange, NSAttributedString) -> Void)? {
+	public var willApplyMutation: ((TextRange, String) -> Void)? {
 		get { partialSystem.willApplyMutation }
 		set { partialSystem.willApplyMutation = newValue }
 	}

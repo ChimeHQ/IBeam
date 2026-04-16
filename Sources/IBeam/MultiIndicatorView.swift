@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 public protocol MultiIndicatorViewDelegate: AnyObject {
 	@MainActor
@@ -8,6 +12,7 @@ public protocol MultiIndicatorViewDelegate: AnyObject {
 	func boundingRectForCursor(at index: Int) -> CGRect?
 }
 
+#if os(macOS)
 extension UserDefaults {
 	func double(for key: String, or value: Double) -> Double {
 		guard
@@ -144,3 +149,4 @@ public class MultiIndicatorView: NSView {
 		])
 	}
 }
+#endif

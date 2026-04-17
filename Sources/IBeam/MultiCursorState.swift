@@ -58,6 +58,34 @@ extension MultiCursorState {
 	public func didChangeText(in range: TextRange, delta: Int) {
 	}
 
+	private func matchOperationToCursors(_ operation: InputOperation) -> InputOperation  {
+		guard case .insertTextArray(let array) = operation else {
+			return operation
+		}
+
+		let diff = internalCursors.count - array.count
+
+		if diff == 0 {
+			return operation
+		}
+
+		if diff > 0 {
+			let newArray = array + Array(repeating: "", count: diff)
+
+			return .insertTextArray(newArray)
+		}
+
+		// here we have more insertions than cursors, so we need to create new
+		// ones to accept the input
+		//
+		// this loop is probably an inefficient way to do it
+		for _ in 0..<abs(diff) {
+			mutateCursors(with: .addBelow)
+		}
+
+		return operation
+	}
+
 	private func validateOperation(_ operation: InputOperation) throws {
 		// check bounds for an array-based insert
 		if case .insertTextArray(let array) = operation {
@@ -110,14 +138,15 @@ extension MultiCursorState {
 		self.internalCursors = newCursors
 	}
 
-	public func apply(_ operation: InputOperation) throws {
+	public func apply(_ operation: InputOperation) {
 		let priorityRange = processor.fullRange
 
-		try apply(operation, prioritizing: priorityRange)
+		apply(operation, prioritizing: priorityRange)
 	}
 
-	public func apply(_ operation: InputOperation, prioritizing priorityTextRange: TextRange) throws {
-		try validateOperation(operation)
+	public func apply(_ operation: InputOperation, prioritizing priorityTextRange: TextRange) {
+		let operation = matchOperationToCursors(operation)
+
 		let affectsContent = operation.affectsContent
 
 		withCursorChanges(affectingContent: affectsContent) {
@@ -215,13 +244,6 @@ extension MultiCursorState {
 		textSystem.boundingRect(for: range)?.origin.x
 	}
 
-	public func resetToSingleRange(_ range: TextRange) {
-		let alignment = cursorAlignment(for: range)
-		let cursor = Cursor<TextRange>(range, alignment: alignment, affinity: nil)
-
-		mutateCursors(with: .resetToSingle(cursor))
-	}
-
 	public func mutateCursors(with operation: CursorOperation<TextRange>) {
 		// I don't think the buffering is actually important here, but the diff calculation and change publishing is
 		withCursorChanges(affectingContent: false) {
@@ -231,10 +253,11 @@ extension MultiCursorState {
 
 	private func unbufferedMutateCursors(with operation: CursorOperation<TextRange>) {
 		switch operation {
-		case var .resetToSingle(cursor):
-			cursor.alignment = cursorAlignment(for: cursor.textRange)
-
-			self.cursors = [cursor]
+		case .reset(let ranges):
+			self.cursors = ranges.map { range in
+				let alignment = cursorAlignment(for: range)
+				return Cursor(range, alignment: alignment, affinity: nil)
+			}
 		case let .add(textRange):
 			let alignment = cursorAlignment(for: textRange)
 			let newCursor = Cursor(textRange, alignment: alignment, affinity: nil)

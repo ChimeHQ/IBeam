@@ -3,7 +3,7 @@ enum CursorOperationError: Error {
 }
 
 public enum CursorOperation<TextRange> {
-	case resetToSingle(Cursor<TextRange>)
+	case reset([TextRange])
 	case add(TextRange)
 	case addAbove
 	case addBelow
@@ -21,19 +21,10 @@ public enum CursorOperation<TextRange> {
 			}
 			
 			return .add(otherRange)
-		case let .resetToSingle(cursor):
-			guard let otherRange = translator(cursor.textRange) else {
-				return nil
-			}
-			
-			let newCursor = Cursor<OtherRange>(
-				id: cursor.id,
-				textRange: otherRange,
-				alignment: cursor.alignment,
-				affinity: cursor.affinity
-			)
-			
-			return .resetToSingle(newCursor)
+		case .reset(let ranges):
+			let transformed = ranges.compactMap { translator($0) }
+
+			return .reset(transformed)
 		}
 	}
 }

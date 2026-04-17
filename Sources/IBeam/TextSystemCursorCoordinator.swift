@@ -65,11 +65,14 @@ public final class TextSystemCursorCoordinator<System: TextSystemInterface> {
 			return
 		}
 
-		// this will have to move towards textView.selectedRanges, but I couldn't quite figure out the right approach
-		let range = textView.selectedRange()
-		let textRange = cursorState.textSystem.textRange(from: range)!
+		let ranges = textView.selectedRanges
+			.compactMap {
+				let range = $0.rangeValue
 
-		cursorState.resetToSingleRange(textRange)
+				return cursorState.textSystem.textRange(from: range)
+			}
+
+		cursorState.mutateCursors(with: .reset(ranges))
 	}
 
 	private func withSelectionMutation(_ block: () throws -> Void) rethrows {
@@ -80,10 +83,12 @@ public final class TextSystemCursorCoordinator<System: TextSystemInterface> {
 	}
 
 	private func cursorsUpdated(added: Set<UUID>, deleted: Set<UUID>, changed: Set<UUID>) {
+		guard let textView else { return }
+
 		indicatorView.needsDisplay = true
 
 		withSelectionMutation {
-			textView?.selectedRanges = cursorState.cursorSet.ranges.map {
+			textView.selectedRanges = cursorState.cursorSet.ranges.map {
 				let range = NSRange($0, with: cursorState.textSystem)
 
 				return NSValue(range: range)
@@ -96,7 +101,7 @@ public final class TextSystemCursorCoordinator<System: TextSystemInterface> {
 		set { indicatorView.color = newValue }
 	}
 
-	public func processOperation(_ operation: InputOperation) throws {
+	public func processOperation(_ operation: InputOperation) {
 		defer {
 			// if we have removed all cursors, process a selection change to
 			// restore our state
@@ -105,8 +110,8 @@ public final class TextSystemCursorCoordinator<System: TextSystemInterface> {
 			}
 		}
 
-		try withSelectionMutation {
-			try cursorState.apply(operation)
+		withSelectionMutation {
+			cursorState.apply(operation)
 		}
 	}
 

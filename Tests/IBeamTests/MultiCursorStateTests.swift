@@ -34,7 +34,7 @@ struct MultiCursorStateTests {
 			]
 		)
 
-		try state.apply(.insertText("z"))
+		state.apply(.insertText("z"))
 
 		let expectedCursorRanges = [
 			NSRange(2..<2),
@@ -43,6 +43,78 @@ struct MultiCursorStateTests {
 		]
 		#expect(state.cursors.map { $0.textRange } == expectedCursorRanges)
 		#expect(state.textSystem.string == "aza\nbbbzb\nzcccc\n")
+	}
+
+	@Test
+	func insertTextArrayMatchingCursors() throws {
+		let state = MultiCursorState(
+			string: "aaaa\nbbbb\ncccc\n",
+			textRanges: [
+				NSRange(1..<3),
+				NSRange(8..<8),
+				NSRange(10..<10),
+			]
+		)
+
+		state.apply(.insertTextArray(["1", "2", "3"]))
+
+		let expectedCursorRanges = [
+			NSRange(2..<2),
+			NSRange(8..<8),
+			NSRange(11..<11),
+		]
+		#expect(state.cursors.map { $0.textRange } == expectedCursorRanges)
+		#expect(state.textSystem.string == "a1a\nbbb2b\n3cccc\n")
+	}
+
+	@Test
+	func insertTextArrayBiggerThanCursors() throws {
+		let state = MultiCursorState(
+			string: "aaaa\nbbbb\ncccc\n",
+			textRanges: [
+				NSRange(1..<3),
+				NSRange(8..<8),
+				NSRange(10..<10),
+			]
+		)
+
+		state.textSystem.responses = [
+			.position(10 + 5),
+			.boundingRect(nil),
+		]
+
+		state.apply(.insertTextArray(["1", "2", "3", "4"]))
+
+		let expectedCursorRanges = [
+			NSRange(2..<2),
+			NSRange(8..<8),
+			NSRange(11..<11),
+			NSRange(17..<17),
+		]
+		#expect(state.cursors.map { $0.textRange } == expectedCursorRanges)
+		#expect(state.textSystem.string == "a1a\nbbb2b\n3cccc\n4")
+	}
+
+	@Test
+	func insertTextArraySmallerThanCursors() throws {
+		let state = MultiCursorState(
+			string: "aaaa\nbbbb\ncccc\n",
+			textRanges: [
+				NSRange(1..<3),
+				NSRange(8..<8),
+				NSRange(10..<10),
+			]
+		)
+
+		state.apply(.insertTextArray(["1", "2"]))
+
+		let expectedCursorRanges = [
+			NSRange(2..<2),
+			NSRange(8..<8),
+			NSRange(10..<10),
+		]
+		#expect(state.cursors.map { $0.textRange } == expectedCursorRanges)
+		#expect(state.textSystem.string == "a1a\nbbb2b\ncccc\n")
 	}
 
 	@Test
@@ -66,7 +138,7 @@ struct MultiCursorStateTests {
 			.boundingRect(nil),
 		]
 
-		try state.apply(.deleteBackwards(.character))
+		state.apply(.deleteBackwards(.character))
 
 		let expectedCursorRanges = [
 			NSRange(1..<1),
@@ -98,7 +170,7 @@ struct MultiCursorStateTests {
 			.boundingRect(nil),
 		]
 
-		try state.apply(.deleteBackwards(.line))
+		state.apply(.deleteBackwards(.line))
 
 		let expectedCursorRanges = [
 			NSRange(1..<1),
@@ -130,7 +202,7 @@ struct MultiCursorStateTests {
 			.boundingRect(nil),
 		]
 
-		try state.apply(.moveLeft(.character))
+		state.apply(.moveLeft(.character))
 
 		let expectedCursorRanges = [
 			NSRange(1..<1),
@@ -164,7 +236,7 @@ struct MultiCursorStateTests {
 			.boundingRect(nil),
 		]
 
-		try state.apply(.moveLeft(.character, selecting: true))
+		state.apply(.moveLeft(.character, selecting: true))
 
 		let expectedCursorRanges = [
 			NSRange(0..<3),
@@ -198,7 +270,7 @@ struct MultiCursorStateTests {
 			.boundingRect(nil),
 		]
 
-		try state.apply(.moveRight(.character, selecting: false))
+		state.apply(.moveRight(.character, selecting: false))
 
 		let expectedCursorRanges = [
 			NSRange(3..<3),
@@ -232,7 +304,7 @@ struct MultiCursorStateTests {
 			.boundingRect(nil),
 		]
 
-		try state.apply(.moveRight(.character, selecting: true))
+		state.apply(.moveRight(.character, selecting: true))
 
 		let expectedCursorRanges = [
 			NSRange(1..<4),
@@ -262,7 +334,7 @@ struct MultiCursorStateTests {
 			.boundingRect(nil),
 		]
 
-		try state.apply(.moveRight(.character, selecting: true))
+		state.apply(.moveRight(.character, selecting: true))
 
 		let expectedCursorRanges = [
 			NSRange(2..<3),
@@ -289,7 +361,7 @@ struct MultiCursorStateTests {
 			.boundingRect(nil),
 		]
 
-		try state.apply(.moveRight(.character, selecting: true))
+		state.apply(.moveRight(.character, selecting: true))
 
 		let expectedCursorRanges = [
 			NSRange(1..<4),
@@ -313,7 +385,7 @@ struct MultiCursorStateTests {
 			.position(7),
 		]
 
-		try state.apply(.moveDown)
+		state.apply(.moveDown)
 
 		let expectedCursors: [(NSRange, CGFloat)] = [
 			(NSRange(7..<7), 2.0),
@@ -367,7 +439,7 @@ extension MultiCursorStateTests {
 			#expect(changed == Set(originalCursors.map(\.id)))
 		}
 
-		try state.apply(.insertText("z"))
+		state.apply(.insertText("z"))
 
 		var expectedCursors = originalCursors
 		expectedCursors[0].textRange = NSRange(2..<2)

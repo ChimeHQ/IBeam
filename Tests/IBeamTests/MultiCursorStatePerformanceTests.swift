@@ -39,7 +39,7 @@ final class MultiCursorStatePerformanceTests: XCTestCase {
 			// first ten lines only
 			let priorityRange = NSRange(0..<(lineLength*10))
 
-			try! state.apply(.insertText("1"), prioritizing: priorityRange)
+			state.apply(.insertText("1"), prioritizing: priorityRange)
 		}
 	}
 }

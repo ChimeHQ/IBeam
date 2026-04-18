@@ -53,6 +53,17 @@ If you need or want to implement a custom system, take a look at the `TextSystem
 
 If you are on macOS 14.0 or greater, you can use the `TextViewIndicatorState` type to manage cursor views.
 
+## Pasteboard Support
+
+[NSPasteboard](https://developer.apple.com/documentation/appkit/nspasteboard/pasteboardtype/multipletextselection) supports mutiple text selection. However, as far as I can tell the actual format used is undocumented. There are two extension methods you can use to encoded and decode data this way within your view system. These include the ability to control line endings.
+
+```swift
+extension NSPasteboard {
+    func multipleTextSelectionStrings(with seperator: String = "\n") -> [String]?
+    func setMultipleTextSelectionStrings(_ strings: [String], with seperator: String = "\n")
+}
+```
+
 ## Usage
 
 Here's an example of using a `TextSystemCursorCoordinator` and `IBeamTextViewSystem` that ties everything together for an `NSTextView`. Unfortunately, a subclass is required, but it's fairly minimal.

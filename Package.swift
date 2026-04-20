@@ -14,7 +14,7 @@ let package = Package(
 		.library(name: "IBeam", targets: ["IBeam"]),
 	],
 	dependencies: [
-		.package(url: "https://github.com/ChimeHQ/Rearrange", branch: "main"),
+		.package(url: "https://github.com/ChimeHQ/Rearrange", from: "2.1.0"),
 	],
 	targets: [
 		.target(name: "IBeam", dependencies: ["Rearrange"]),

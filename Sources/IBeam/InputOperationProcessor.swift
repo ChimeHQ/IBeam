@@ -35,7 +35,7 @@ struct InputOperationProcessor<System: TextSystemInterface> {
 		textSystem.layoutDirection(at: position) ?? .leftToRight
 	}
 
-	public func apply(_ operation: InputOperation, to cursor: Cursor<System.TextRange>, delta: Int) throws -> Output? {
+	public func apply(_ operation: InputOperation, to cursor: Cursor<System.TextRange>, delta: Int) -> Output? {
 		// step one, apply delta
 		let range = CalculatedRange(cursor.textRange, calculator: textSystem).offset(by: delta)
 
@@ -52,11 +52,11 @@ struct InputOperationProcessor<System: TextSystemInterface> {
 				offset: delta
 			)
 
-			return try textSystem.applyMutation(mutation)
+			return try! textSystem.applyMutation(mutation)
 		case .insertAttributedString:
 			fatalError("this isn't supported yet")
 		case let .deleteBackwards(value):
-			return try deleteBackwards(granularity: value, textRange: range, cursorId: cursor.id, offset: delta)
+			return deleteBackwards(granularity: value, textRange: range, cursorId: cursor.id, offset: delta)
 		case let .moveLeft(granularity, selecting):
 			return moveLeft(
 				granularity: granularity,
@@ -86,7 +86,7 @@ struct InputOperationProcessor<System: TextSystemInterface> {
 		}
 	}
 
-	private func deleteBackwards(granularity: TextGranularity, textRange: CalculatedRange<System>, cursorId: UUID, offset: Int) throws -> Output? {
+	private func deleteBackwards(granularity: TextGranularity, textRange: CalculatedRange<System>, cursorId: UUID, offset: Int) -> Output? {
 		let emptyString = String()
 
 		if textRange.isEmpty {
@@ -97,10 +97,10 @@ struct InputOperationProcessor<System: TextSystemInterface> {
 				return nil
 			}
 
-			return try textSystem.applyMutation(deleteRange, string: emptyString, cursorId: cursorId, offset: offset)
+			return try! textSystem.applyMutation(deleteRange, string: emptyString, cursorId: cursorId, offset: offset)
 		}
 
-		return try textSystem.applyMutation(textRange.range, string: emptyString, cursorId: cursorId, offset: offset)
+		return try! textSystem.applyMutation(textRange.range, string: emptyString, cursorId: cursorId, offset: offset)
 	}
 
 	private func moveLeft(

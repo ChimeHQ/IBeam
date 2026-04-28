@@ -3,15 +3,6 @@ import AppKit
 
 import Rearrange
 
-extension NSRange {
-	init<Calculator: TextRangeCalculating>(_ textRange: Calculator.TextRange, with calculator: Calculator) {
-		let location = calculator.offset(from: calculator.beginningOfDocument, to: textRange.lowerBound)
-		let length = calculator.offset(from: textRange.lowerBound, to: textRange.upperBound)
-
-		self.init(location: location, length: length)
-	}
-}
-
 @MainActor
 public final class TextSystemCursorCoordinator<System: TextSystemInterface> {
 	public typealias CursorState = MultiCursorState<System>
@@ -54,6 +45,10 @@ public final class TextSystemCursorCoordinator<System: TextSystemInterface> {
 		indicatorView.delegate = cursorState
 	}
 
+	private var textSystem: System {
+		cursorState.textSystem
+	}
+
 	private func selectionChanged() {
 		let undoManager = textView?.undoManager
 
@@ -69,7 +64,7 @@ public final class TextSystemCursorCoordinator<System: TextSystemInterface> {
 			.compactMap {
 				let range = $0.rangeValue
 
-				return cursorState.textSystem.textRange(from: range)
+				return textSystem.textRange(from: range)
 			}
 
 		cursorState.mutateCursors(with: .reset(ranges))
@@ -120,7 +115,7 @@ public final class TextSystemCursorCoordinator<System: TextSystemInterface> {
 	}
 
 	public func didChangeText(in range: NSRange, delta: Int) {
-		let textRange = cursorState.textSystem.textRange(from: range)!
+		let textRange = textSystem.textRange(from: range)!
 
 		// if this results in changes to the cursor locations, we'll get our callback
 		cursorState.didChangeText(in: textRange, delta: delta)

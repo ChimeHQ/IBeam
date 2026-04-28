@@ -1,5 +1,5 @@
 {
-  "originHash" : "2a830c2d6955fed280712f37a434e5b3ce7f85215ebff8ff246f820cb37278ab",
+  "originHash" : "455b3c6921d3eedcd0b9d93bc77f7db928853aaceaf0802ff968dea0bfa9b086",
   "pins" : [
     {
       "identity" : "glyph",
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ChimeHQ/Rearrange",
       "state" : {
-        "revision" : "66a819f867bd61b07f97778f96265b421e81226b",
-        "version" : "2.1.0"
+        "revision" : "4de8be41dba304192e87dc0a11e0aa39e72aa2e8",
+        "version" : "2.1.1"
       }
     }
   ],

@@ -18,7 +18,7 @@ let package = Package(
 		.default(enabledTraits: ["ViewSupport"])
 	],
 	dependencies: [
-		.package(url: "https://github.com/ChimeHQ/Rearrange", from: "2.1.0"),
+		.package(url: "https://github.com/ChimeHQ/Rearrange", from: "2.1.1"),
 		.package(url: "https://github.com/ChimeHQ/Ligature", from: "0.1.1"),
 	],
 	targets: [

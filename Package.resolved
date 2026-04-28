@@ -1,6 +1,24 @@
 {
-  "originHash" : "2ff1569497b738b2500649c520e2ca5ee81b866bbbdff55439c01be36378b463",
+  "originHash" : "2a830c2d6955fed280712f37a434e5b3ce7f85215ebff8ff246f820cb37278ab",
   "pins" : [
+    {
+      "identity" : "glyph",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ChimeHQ/Glyph",
+      "state" : {
+        "revision" : "85aa0bab83180d60265689e649e1a61b5489342c",
+        "version" : "0.1.1"
+      }
+    },
+    {
+      "identity" : "ligature",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ChimeHQ/Ligature",
+      "state" : {
+        "revision" : "677abb3ad29e0979248f062dc969c16160951217",
+        "version" : "0.1.1"
+      }
+    },
     {
       "identity" : "rearrange",
       "kind" : "remoteSourceControl",

@@ -27,6 +27,10 @@ dependencies: [
 ]
 ```
 
+Supported Traits:
+
+- `ViewSupport`: Enabled the `IBeamTextViewSystem` type, used for direct `NS/UITextView` integration.
+
 ## Concepts
 
 The `MultiCursorState` type accepts two kinds of events to manage cursor states: `InputOperation` and `CursorOperation`.
@@ -39,15 +43,7 @@ To support large numbers of cursors, `MultiCursorState` plays tricks. In particu
 
 IBeam needs to be provided with an interface to the underlying text system. The functionality required to do this is non-trivial, especially when the concepts of "range" and "text location" are fully generic.
 
-If you are interested in just connecting this up to AppKit/UIKit, you can do this with [IBeamTextViewSystem](IBeamTextViewSystem.swift). It makes use of [Ligature][] to efficiently implement the needed facilities. And, because that library is implemented with [Glyph][] internally, it is compatible with both TextKit 1 and 2.
-
-[Ligature]: https://github.com/ChimeHQ/Ligature
-[Glyph]: https://github.com/ChimeHQ/Glyph
-
-This is a fair bit of work, but it is not included in this library for three reasons:
-
-- Ligature and Glyph may only make sense if you are using a pure NS/UITextView implementation
-- A custom view subclass likely means you'll need to do customization on your own anyways
+The `IBeamTextViewSystem` type is available for direct integration with `NS/UITextView`, compatible with both TextKit 1 and 2. It is gated behind the `ViewSupport` package trait. However, this is unlikely to meet the needs of sophisticated users. If you need or want to implement a custom system, take a look at the `TextSystemInterface` protocol. It offers a lot of flexibility, particularly around how your system applies text mutations.
 
 If you need or want to implement a custom system, take a look at the `TextSystemInterface` protocol. It offers a lot of flexibility, particularly around how your system applies text mutations.
 

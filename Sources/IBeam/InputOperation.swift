@@ -33,8 +33,18 @@ public enum InputOperation {
 			self = .deleteBackwards(.character)
 		case #selector(NSResponder.deleteToBeginningOfLine(_:)):
 			self = .deleteBackwards(.line)
+		case #selector(NSResponder.deleteWordBackward(_:)):
+			self = .deleteBackwards(.word)
 		case #selector(NSResponder.moveLeft(_:)):
 			self = .moveLeft(.character)
+		case #selector(NSResponder.moveWordLeft(_:)):
+			self = .moveLeft(.word, selecting: false)
+		case #selector(NSResponder.moveWordLeftAndModifySelection(_:)):
+			self = .moveLeft(.word, selecting: true)
+		case #selector(NSResponder.moveWordRight(_:)):
+			self = .moveRight(.word, selecting: false)
+		case #selector(NSResponder.moveWordRightAndModifySelection(_:)):
+			self = .moveRight(.word, selecting: true)
 		case #selector(NSResponder.moveLeftAndModifySelection(_:)):
 			self = .moveLeft(.character, selecting: true)
 		case #selector(NSResponder.moveToLeftEndOfLine(_:)):

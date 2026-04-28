@@ -81,6 +81,8 @@ struct InputOperationProcessor<System: TextSystemInterface> {
 			return moveToLeftEndOfLine(textRange: range)
 		case .moveToEndOfDocument(selecting: let selecting):
 			return moveToEndOfDocument(selecting: selecting, textRange: range)
+		case .moveToBeginningOfDocument(selecting: let selecting):
+			return moveToBeginningOfDocument(selecting: selecting, textRange: range)
 		case .insertTextArray:
 			fatalError("This operation cannot be processed on a per-cursor basis")
 		}
@@ -300,6 +302,16 @@ struct InputOperationProcessor<System: TextSystemInterface> {
 		let end = textSystem.endOfDocument
 
 		return textSystem.textRange(from: end, to: end)
+			.map { Output(selection: $0, delta: 0) }
+	}
+
+	private func moveToBeginningOfDocument(
+		selecting: Bool,
+		textRange: TextRange
+	) -> Output? {
+		let start = textSystem.beginningOfDocument
+
+		return textSystem.textRange(from: start, to: start)
 			.map { Output(selection: $0, delta: 0) }
 	}
 }

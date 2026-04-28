@@ -394,6 +394,55 @@ struct MultiCursorStateTests {
 		#expect(state.cursors.map { $0.alignment } == expectedCursors.map({ $0.1 }))
 		#expect(state.textSystem.string == "aaaa\nbbbb\ncccc\n")
 	}
+
+	@Test
+	func moveToEndOfDocument() throws {
+		let state = MultiCursorState(
+			string: "aaaa\nbbbb\ncccc\n",
+			textRanges: [
+				NSRange(1..<3),
+				NSRange(8..<8),
+				NSRange(10..<10),
+			]
+		)
+
+		state.textSystem.responses = [
+			.position(15),
+			.boundingRect(nil),
+		]
+
+		state.apply(.moveToEndOfDocument(selecting: false))
+
+		let expectedCursors: [(NSRange, CGFloat)] = [
+			(NSRange(15..<15), 0.0),
+		]
+		#expect(state.cursors.map { $0.textRange } == expectedCursors.map({ $0.0 }))
+		#expect(state.textSystem.string == "aaaa\nbbbb\ncccc\n")
+	}
+
+	@Test
+	func moveToBeginningOfDocument() throws {
+		let state = MultiCursorState(
+			string: "aaaa\nbbbb\ncccc\n",
+			textRanges: [
+				NSRange(1..<3),
+				NSRange(8..<8),
+				NSRange(10..<10),
+			]
+		)
+
+		state.textSystem.responses = [
+			.position(0),
+		]
+
+		state.apply(.moveToBeginningOfDocument(selecting: false))
+
+		let expectedCursors: [(NSRange, CGFloat)] = [
+			(NSRange(0..<0), 0.0),
+		]
+		#expect(state.cursors.map { $0.textRange } == expectedCursors.map({ $0.0 }))
+		#expect(state.textSystem.string == "aaaa\nbbbb\ncccc\n")
+	}
 }
 
 extension MultiCursorStateTests {

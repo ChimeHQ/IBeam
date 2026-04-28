@@ -59,28 +59,37 @@ extension MultiCursorState {
 	}
 
 	private func matchOperationToCursors(_ operation: InputOperation) -> InputOperation  {
-		guard case .insertTextArray(let array) = operation else {
-			return operation
-		}
+		switch operation {
+		case .insertTextArray(let array):
+			let diff = internalCursors.count - array.count
 
-		let diff = internalCursors.count - array.count
+			if diff == 0 {
+				return operation
+			}
 
-		if diff == 0 {
-			return operation
-		}
+			if diff > 0 {
+				let newArray = array + Array(repeating: "", count: diff)
 
-		if diff > 0 {
-			let newArray = array + Array(repeating: "", count: diff)
+				return .insertTextArray(newArray)
+			}
 
-			return .insertTextArray(newArray)
-		}
+			// here we have more insertions than cursors, so we need to create new
+			// ones to accept the input
+			//
+			// this loop is probably an inefficient way to do it
+			for _ in 0..<abs(diff) {
+				mutateCursors(with: .addBelow)
+			}
+		case .moveToBeginningOfDocument:
+			let range = cursors.first?.textRange ?? textSystem.fullDocumentRange
 
-		// here we have more insertions than cursors, so we need to create new
-		// ones to accept the input
-		//
-		// this loop is probably an inefficient way to do it
-		for _ in 0..<abs(diff) {
-			mutateCursors(with: .addBelow)
+			mutateCursors(with: .reset([range]))
+		case .moveToEndOfDocument:
+			let range = cursors.last?.textRange ?? textSystem.fullDocumentRange
+
+			mutateCursors(with: .reset([range]))
+		default:
+			break
 		}
 
 		return operation

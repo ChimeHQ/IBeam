@@ -16,6 +16,7 @@ public enum InputOperation {
 	case moveToLeftEndOfLine(selecting: Bool = false)
 	case moveToRightEndOfLine(selecting: Bool = false)
 	case moveToEndOfDocument(selecting: Bool = false)
+	case moveToBeginningOfDocument(selecting: Bool = false)
 
 	func indexedOperation(for cursorIndex: Int) -> InputOperation {
 		switch self {
@@ -63,6 +64,12 @@ public enum InputOperation {
 			self = .insertText(lineEnding)
 		case #selector(NSResponder.moveToEndOfDocument(_:)):
 			self = .moveToEndOfDocument(selecting: false)
+		case #selector(NSResponder.moveToEndOfDocumentAndModifySelection(_:)):
+			self = .moveToEndOfDocument(selecting: true)
+		case #selector(NSResponder.moveToBeginningOfDocument(_:)):
+			self = .moveToBeginningOfDocument(selecting: false)
+		case #selector(NSResponder.moveToBeginningOfDocumentAndModifySelection(_:)):
+			self = .moveToBeginningOfDocument(selecting: true)
 		default:
 			if NSResponder.selectorsAffectingCursor.contains(selector) {
 				print("WARNING: Unhandled cursor mutation \(selector). This could result in state corruption.")
